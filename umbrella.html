@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>UMBRELLA</title>
+<style>
+  :root{
+    --green:#0fc40f;--green-bright:#2aff1a;--green-deep:#055a05;
+    --panel:rgba(8,90,8,.38);--line:rgba(60,255,40,.45);
+    --text:#e9f2e6;--dim:rgba(233,242,230,.55);
+    --red:#ff4a3a;--ink:rgba(6,10,14,.9);
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#061a30;color:var(--text);
+    font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;-webkit-font-smoothing:antialiased;user-select:none}
+  canvas#stage,canvas#stage3d{position:fixed;inset:0;width:100%;height:100%}
+  canvas#stage3d{pointer-events:none;z-index:2}
+  canvas#stage{z-index:1}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:3;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,4,10,.7) 100%)}
+  /* top bar */
+  .top{position:fixed;left:0;right:0;top:0;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;pointer-events:none}
+  .top>*{pointer-events:auto}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:18px;letter-spacing:.2em;color:#fff;text-shadow:0 0 14px rgba(80,255,60,.5)}
+  .brand i{width:26px;height:26px;border-radius:50%;background:conic-gradient(#ff3b30 0 45deg,#fff 45deg 90deg,#ff3b30 90deg 135deg,#fff 135deg 180deg,#ff3b30 180deg 225deg,#fff 225deg 270deg,#ff3b30 270deg 315deg,#fff 315deg);box-shadow:0 0 12px rgba(255,60,50,.6)}
+  .chip{font-size:11px;letter-spacing:.14em;padding:7px 10px;background:var(--ink);border:1px solid var(--line);color:var(--text);white-space:nowrap}
+  .chip b{color:#fff}
+  .wallet{display:flex;gap:6px}
+  @media (max-width:640px){.brand{font-size:15px;letter-spacing:.14em}.brand i{width:22px;height:22px}.chip{font-size:10px;padding:6px 7px;letter-spacing:.08em}}
+  /* bottom nav */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:9;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 10px calc(8px + var(--safe-b));background:linear-gradient(180deg,rgba(2,10,4,0),rgba(2,10,4,.92) 40%)}
+  .nav button{appearance:none;border:1px solid var(--line);background:rgba(4,40,8,.85);color:#dfffd2;font:inherit;font-size:11px;letter-spacing:.14em;padding:12px 4px;cursor:pointer;
+    clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+  .nav button.primary{background:linear-gradient(180deg,#0da80d,#065f06);color:#fff;font-weight:700;text-shadow:0 0 10px rgba(140,255,90,.8)}
+  .nav button:active{filter:brightness(1.3)}
+  /* sheets */
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:8;max-height:86dvh;overflow:auto;background:rgba(3,14,6,.96);border-top:1px solid var(--line);
+    padding:14px 16px calc(84px + var(--safe-b));transform:translateY(calc(100% + 140px));transition:transform .28s ease;box-shadow:0 -10px 40px rgba(0,0,0,.6)}
+  .sheet.on{transform:none}
+  @media (min-width:900px){
+    .sheet{left:auto;right:16px;bottom:88px;width:440px;max-height:calc(100dvh - 112px);padding-bottom:18px;border:1px solid var(--line);clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
+  }
+  .sheet h2{font-size:15px;letter-spacing:.24em;font-weight:700;color:#fff;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .sheet h2 .x{font-size:20px;color:var(--dim);cursor:pointer;padding:0 6px}
+  .sub{font-size:11px;letter-spacing:.2em;color:var(--dim);margin-bottom:12px}
+  .row{display:flex;justify-content:space-between;gap:12px;font-size:13px;letter-spacing:.08em;padding:6px 0;border-bottom:1px dashed rgba(60,255,40,.15)}
+  .row b{color:#fff;font-variant-numeric:tabular-nums}
+  .row.t{border:none;margin-top:8px;font-size:10px;letter-spacing:.3em;color:var(--dim)}
+  .lab{font-size:10px;letter-spacing:.3em;color:var(--dim);margin:12px 0 6px}
+  .inp{display:flex;gap:8px;align-items:center}
+  .inp input{flex:1;min-width:0;background:rgba(2,20,2,.85);border:1px solid var(--line);color:#fff;font:inherit;font-size:22px;padding:10px 12px;outline:none;letter-spacing:.06em;font-variant-numeric:tabular-nums}
+  .inp input:focus{border-color:var(--green-bright);box-shadow:inset 0 0 14px rgba(42,255,26,.3)}
+  .presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+  .presets div,.btn{border:1px solid var(--line);background:rgba(4,40,8,.7);color:#dfffd2;font-size:12px;letter-spacing:.12em;text-align:center;padding:9px 6px;cursor:pointer}
+  .presets div:active,.btn:active{filter:brightness(1.4)}
+  .btn{display:block;width:100%;margin-top:14px;font-size:15px;font-weight:700;letter-spacing:.24em;padding:14px;color:#fff;
+    background:linear-gradient(180deg,#0da80d,#065f06);clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px)}
+  .btn.warn{background:linear-gradient(180deg,#b3261e,#6a120d)}
+  .btn.ghost{background:rgba(4,40,8,.7);font-weight:400;font-size:12px;padding:10px}
+  .btn[disabled]{opacity:.45;pointer-events:none}
+  .status{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .tag{font-size:9.5px;letter-spacing:.2em;padding:4px 8px;border:1px solid;border-radius:2px}
+  .tag.ok{color:#9dff7a;border-color:#4fd63a}.tag.bad{color:#ffb3a8;border-color:#ff6a5a}.tag.info{color:#9fd8ff;border-color:#4da6ff}
+  .note{font-size:11.5px;line-height:1.5;color:var(--dim);letter-spacing:.04em;margin-top:8px}
+  .note b{color:#dfffd2}
+  /* virus cards */
+  .card{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:10px;margin-top:8px;border:1px solid rgba(60,255,40,.25);background:rgba(4,30,6,.7);cursor:pointer}
+  .card.sel{border-color:var(--green-bright);background:rgba(8,70,8,.6)}
+  .card canvas{width:56px;height:56px;background:radial-gradient(circle,rgba(20,80,20,.6),transparent 70%)}
+  .card .nm{font-weight:700;letter-spacing:.14em;color:#fff;font-size:13px}
+  .card .mt{font-size:10px;letter-spacing:.12em;color:var(--dim);margin-top:2px}
+  .card .yl{font-size:12px;letter-spacing:.06em;color:#9dff7a;font-variant-numeric:tabular-nums;text-align:right}
+  .card .st{font-size:9px;letter-spacing:.2em;text-align:right;margin-top:3px}
+  .st.on{color:#9dff7a}.st.off{color:#ffb347}
+  .result{margin:16px 0 4px;padding:4px 0 0 14px;border-left:2px solid var(--green-bright)}
+  .result .r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0}
+  .result .r+.r{border-top:1px dashed rgba(60,255,40,.18)}
+  .result .k{font-size:10.5px;letter-spacing:.28em;color:var(--dim)}
+  .result .k i{display:block;font-style:normal;font-size:10px;letter-spacing:.06em;color:#fff;margin-top:3px;text-transform:none}
+  .result .v{text-align:right;font-size:26px;font-weight:800;color:#9dff7a;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 0 14px rgba(80,255,60,.35);white-space:nowrap}
+  .result .v small{display:block;font-size:9.5px;font-weight:400;letter-spacing:.26em;color:var(--dim);margin-top:5px;text-shadow:none}
+  .hero{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 6px}
+  .hero div{padding:12px 12px 10px;border:1px solid var(--line);background:rgba(4,40,8,.55)}
+  .hero small{display:block;font-size:9.5px;letter-spacing:.28em;color:var(--dim)}
+  .hero b{display:block;font-size:24px;font-weight:800;color:#9dff7a;letter-spacing:.02em;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px;text-shadow:0 0 14px rgba(80,255,60,.4)}
+  .hero em{display:block;font-style:normal;font-size:11px;color:#fff;letter-spacing:.06em;margin-top:2px;font-variant-numeric:tabular-nums}
+  .hero .hold{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:rgba(2,20,4,.7)}
+  .hero .hold b{font-size:15px;color:#fff;text-shadow:none;margin:0}
+  .card .yl{font-size:14px;font-weight:700}
+  .card .yl small{display:block;font-weight:400;font-size:9px;color:var(--dim);letter-spacing:.2em}
+  .card .ed{font-size:11px;color:#fff;font-variant-numeric:tabular-nums;text-align:right;margin-top:3px}
+  .card .ed small{color:var(--dim);letter-spacing:.14em;font-size:9px}
+  .detail{margin-top:10px;padding:12px;border:1px solid var(--line);background:rgba(2,20,4,.8)}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .actions .btn{margin:0;font-size:12px;padding:11px 6px;letter-spacing:.16em}
+  .lb{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:7px 8px;border-bottom:1px dashed rgba(60,255,40,.15);font-size:12px}
+  .lb .rk{font-weight:700;color:var(--dim);font-variant-numeric:tabular-nums;letter-spacing:.06em}
+  .lb .nm{font-weight:700;letter-spacing:.12em;color:#fff}
+  .lb .mt{font-size:9.5px;letter-spacing:.12em;color:var(--dim);margin-top:2px}
+  .lb .ea{color:#9dff7a;font-variant-numeric:tabular-nums;text-align:right;font-weight:700;letter-spacing:.04em}
+  .lb .ea small{display:block;font-weight:400;font-size:9px;color:var(--dim);letter-spacing:.2em}
+  .lb.me{background:rgba(8,70,8,.55);border:1px solid var(--green-bright);margin:4px 0}
+  .lb.podium .rk{color:#ffd166}
+  .empty{padding:20px 0;text-align:center;color:var(--dim);font-size:12px;letter-spacing:.2em}
+  /* name plaque */
+  #plaque{position:fixed;left:50%;top:14%;transform:translateX(-50%);width:min(520px,calc(100% - 24px));z-index:9;display:none;
+    background:rgba(4,40,4,.9);border:1px solid var(--line);box-shadow:0 0 30px rgba(40,255,20,.25);
+    clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,14px 100%,0 calc(100% - 14px))}
+  #plaque.on{display:block}
+  #plaque .np-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;font-size:14px;letter-spacing:.16em;color:#e9ffdf;
+    background:linear-gradient(90deg,rgba(20,140,15,.55),rgba(8,90,8,.25));border-bottom:1px solid var(--line)}
+  #plaque .np-title span{font-size:10px;color:var(--dim);letter-spacing:.3em}
+  #plaque .np-row{display:flex;gap:12px;align-items:center;padding:20px 20px 10px}
+  #plaque .np-shuffle{width:46px;height:46px;flex:none;display:grid;place-items:center;font-size:22px;color:#fff;background:rgba(2,20,2,.7);border:1px solid var(--line);cursor:pointer}
+  #plaque input{flex:1;min-width:0;background:rgba(2,20,2,.85);border:1px solid var(--green-bright);box-shadow:inset 0 0 14px rgba(42,255,26,.3);color:#fff;font:inherit;font-size:22px;text-align:center;padding:10px 12px;outline:none;letter-spacing:.1em;text-transform:uppercase}
+  #plaque .np-hint{text-align:center;padding:0 0 12px;font-size:11px;letter-spacing:.22em;color:var(--dim)}
+  #plaque .np-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px 18px}
+  #plaque .np-actions .btn{margin:0;font-size:13px;padding:12px}
+  #dimmer{position:fixed;inset:0;background:rgba(0,4,10,.62);z-index:5;display:none}
+  #dimmer.on{display:block}
+  /* toasts + loader */
+  #toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:12;font-size:12px;letter-spacing:.2em;color:#fff;background:var(--ink);border:1px solid var(--line);padding:10px 16px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:calc(100% - 24px);text-align:center}
+  #toast.on{opacity:1}
+  #flash{position:fixed;inset:0;background:rgba(30,255,10,.35);opacity:0;pointer-events:none;z-index:11;transition:opacity .12s}
+  .model-loader{position:fixed;left:50%;bottom:calc(84px + var(--safe-b));transform:translateX(-50%);width:min(300px,80%);z-index:6;font-family:monospace;font-size:10px;letter-spacing:.2em;color:#9dff7a;opacity:0;transition:opacity .2s;pointer-events:none}
+  .model-loader.on{opacity:1}.model-loader.error{color:#ffb347;pointer-events:auto;cursor:pointer}
+  .model-loader-label{display:flex;justify-content:space-between;margin-bottom:6px}
+  .model-loader-track{height:2px;background:rgba(60,255,40,.2)}.model-loader-bar{height:100%;width:0;background:#2aff1a}
+  .how p{font-size:12.5px;line-height:1.55;color:var(--text);margin:6px 0 10px}
+  .how h3{font-size:11px;letter-spacing:.3em;color:#9dff7a;margin-top:12px}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<canvas id="stage3d"></canvas>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="dimmer"></div>
+
+<div class="top">
+  <div class="brand"><i></i>UMBRELLA</div>
+  <div class="wallet">
+    <div class="chip" id="ch-usdg"><b>0</b> USDG</div>
+    <div class="chip" id="ch-umb"><b>0</b> UMBRELLA</div>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="primary" onclick="openSheet('bond')">BUY VIRUS</button>
+  <button onclick="openSheet('viruses')">MY VIRUSES</button>
+  <button onclick="openSheet('treasury')">TREASURY</button>
+  <button onclick="openSheet('board')">LEADERBOARD</button>
+</div>
+
+<!-- BUY BOND -->
+<div class="sheet" id="sh-bond">
+  <h2>BUY VIRUS <span class="x" onclick="closeSheets()">×</span></h2>
+  <div class="sub">PAY USDG · YOUR VIRUS HOLDS THE UMBRELLA AND EARNS EVERY DAY</div>
+  <div class="lab">AMOUNT (USDG)</div>
+  <div class="inp"><input id="bd-amt" type="number" inputmode="decimal" min="1" value="500" oninput="renderBond()"></div>
+  <div class="presets"><div onclick="setAmt(100)">100</div><div onclick="setAmt(500)">500</div><div onclick="setAmt(2500)">2,500</div><div onclick="setAmt(10000)">10,000</div></div>
+  <div id="bd-quote"></div>
+  <button class="btn" id="bd-buy" onclick="buyBond()">BUY VIRUS ›</button>
+</div>
+
+<!-- MY VIRUSES -->
+<div class="sheet" id="sh-viruses">
+  <h2>MY VIRUSES <span class="x" onclick="closeSheets()">×</span></h2>
+  <div class="sub" id="vr-sub"></div>
+  <div id="vr-list"></div>
+  <div id="vr-detail"></div>
+</div>
+
+<!-- TREASURY -->
+<div class="sheet" id="sh-treasury">
+  <h2>TREASURY <span class="x" onclick="closeSheets()">×</span></h2>
+  <div id="tr-body"></div>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="sheet" id="sh-board">
+  <h2>LEADERBOARD <span class="x" onclick="closeSheets()">×</span></h2>
+  <div class="sub" id="lb-sub">TOP 100 VIRUSES · UMBRELLA EARNED PER DAY</div>
+  <div id="lb-list"></div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="sheet how" id="sh-how">
+  <h2>HOW IT WORKS <span class="x" onclick="closeSheets()">×</span></h2>
+  <h3>MONEY IN</h3>
+  <p>You pay USDG (on Robinhood Chain) to buy a bond. The bond is minted as a <b>Virus NFT</b> — an ERC-6551 token-bound account. Bond price follows the Olympus debt-ratio formula; the discount to market UMBRELLA is your edge for locking capital. A purchase fee is taken in USDG at buy time.</p>
+  <h3>TREASURY BUYS PFIZER</h3>
+  <p>Your USDG is split: a remittance to <b>Core Treasury</b>, the rest buys tokenized <b>PFE</b> via the Robinhood Stock Token route. Atomic path: PFE lands in the <b>RWA Sleeve</b> in the same transaction. Fallback: USDG goes to the Sleeve and a Safe buys PFE later. The Sleeve is a separate Safe — PFE never enters reserve accounting and cannot mint UMBRELLA. PFE price comes from a Chainlink Stock Token feed with staleness, pause and range checks; the atomic path pauses when the feed is stale (outside market hours).</p>
+  <h3>THE VIRUS IS THE BOND AND THE STAKE</h3>
+  <p>The NFT's token-bound account holds the UMBRELLA payout and everything that accrues to it. Each rebase credits yield inside the NFT — only while it is staked in the pool. The NFT is freely transferable: selling it sells principal plus accrued yield as one unit.</p>
+  <h3>CLAIM BURNS THE VIRUS</h3>
+  <p>Claim is one-shot: you receive principal plus yield minus the claim fee, and the NFT is destroyed. The fee depends on how many holders claim in the same one-minute window — the <b>World Alert</b> on the map shows the current fee, and it resets every minute. Crowded exits cost more. Half the fee is burned; half is redistributed to the NFTs still staked.</p>
+  <h3>WHAT BACKS WHAT</h3>
+  <p>UMBRELLA is minted only against Core Treasury excess reserves. PFE in the Sleeve is protocol-owned equity exposure, not backing; how its value flows back to Virus holders is not yet defined.</p>
+  <p class="note">This is a simulation running in your browser — no wallet, no chain. Epochs are accelerated: one rebase every <b id="how-epoch"></b> seconds stands in for an 8-hour epoch.</p>
+  <button class="btn ghost" onclick="resetSim()">RESET SIMULATION</button>
+</div>
+
+<!-- NAME PLAQUE -->
+<div id="plaque">
+  <div class="np-title">NAME YOUR VIRUS <span id="nm-sub"></span></div>
+  <div class="np-row">
+    <div class="np-shuffle" onclick="shuffleName()">⇄</div>
+    <input id="nm-input" type="text" maxlength="20" placeholder="MR. WIGGLES">
+  </div>
+  <div class="np-hint">MAX 20 CHARACTERS</div>
+  <div class="np-actions"><button class="btn ghost" onclick="cancelName()">‹ BACK</button><button class="btn" onclick="confirmName()">RELEASE ›</button></div>
+</div>
+
+<div id="model-loader" class="model-loader on" role="status" aria-live="polite">
+  <div class="model-loader-label"><span id="model-loader-text">LOADING SPECIMEN</span><span id="model-loader-percent">0%</span></div>
+  <div class="model-loader-track"><div id="model-loader-bar" class="model-loader-bar"></div></div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ================= simulation state ================= */
+const EPOCH_SEC=30;                       // demo-accelerated: stands in for an 8h epoch
+const P={purchaseFeeBps:50,remittanceBps:3000,bcv:23,minPrice:0.85,rewardRate:0.0035,
+         claimBaseBps:200,claimStepBps:150,claimMaxBps:1500,claimWindowSec:60,backingPerUmb:1.0,debtDecayPerEpoch:0.02};
+const PET_POOL=["SQUIRMY","NOODLE","GLORP","WORMONA","PUDDING","LURKER","MR. TEETH","SLIPPY","DOTTIE","CRUMB","WIGGLES JR.","MOIST LARRY","MEATBALL","KEVIN","GOOP","CRINGLE"];
+const now=()=>Date.now()/1000;
+const fmt=n=>Math.round(n).toLocaleString("en-US");
+const f2=n=>n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const hex=()=>"0x"+Array.from({length:40},()=>"0123456789abcdef"[Math.floor(Math.random()*16)]).join("");
+const short=a=>a.slice(0,6)+"…"+a.slice(-4);
+function fresh(){
+  return {
+    wallet:{usdg:25000,umbrella:1500},
+    treasury:{coreUsdg:1250000,umbrellaSupply:980000,bondDebt:36000,sleevePfe:2140,sleeveUsdgPending:0,burned:0,feesUsdg:0},
+    market:{umbrellaPrice:1.42,pfePrice:28.4,feedAt:now(),feedOverride:null},
+    viruses:[],claims:[],epoch:0,lastRebaseAt:now(),log:[],nextId:1,others:seedOthers(),
+  };
+}
+// the rest of the pool: deterministic population of other holders' viruses
+function seedOthers(){
+  const r=(i,n)=>{const x=Math.sin(i*12.9898+n*78.233)*43758.5453;return x-Math.floor(x);};
+  const suf=["","","","-II","-X","-PRIME","-9","-ALPHA","-B","-Ω"];
+  return Array.from({length:140},(_,i)=>({
+    name:PET_POOL[Math.floor(r(i,1)*PET_POOL.length)]+suf[Math.floor(r(i,2)*suf.length)],
+    owner:"0x"+Math.floor(r(i,3)*0xffffff).toString(16).padStart(6,"0")+"…"+Math.floor(r(i,4)*0xffff).toString(16).padStart(4,"0"),
+    principal:Math.round(60*Math.exp(r(i,5)*6.4)),     // 60 … ~36k UMBRELLA, long tail
+    seed:r(i,6)*100,staked:r(i,7)<0.85,epochs:Math.floor(r(i,8)*120),
+  }));
+}
+const perDay=amount=>amount*P.rewardRate*3;   // three 8-hour epochs a day
+const otherValue=o=>o.principal*Math.pow(1+P.rewardRate,o.epochs+(o.staked?S.epoch:0));
+let S=load()||fresh();
+if(!S.others)S.others=seedOthers();
+function load(){try{const s=JSON.parse(localStorage.getItem("umbrella-sim"));if(s&&s.viruses)return s;}catch(e){}return null;}
+function save(){try{localStorage.setItem("umbrella-sim",JSON.stringify(S));}catch(e){}}
+function resetSim(){localStorage.removeItem("umbrella-sim");S=fresh();closeSheets();toast("SIMULATION RESET");renderAll();}
+function log(m){S.log.unshift({t:now(),m});S.log.length=Math.min(S.log.length,40);}
+
+/* ---- pricing: Olympus-style debt ratio ---- */
+const debtRatio=()=>S.treasury.bondDebt/Math.max(1,S.treasury.umbrellaSupply);
+const bondPrice=()=>Math.max(P.minPrice,P.bcv*debtRatio()*S.market.umbrellaPrice);
+const excessReserves=()=>S.treasury.coreUsdg-S.treasury.umbrellaSupply*P.backingPerUmb;
+/* ---- Chainlink stock token feed (simulated) ---- */
+function marketOpen(){const d=new Date(),w=d.getUTCDay(),m=d.getUTCHours()*60+d.getUTCMinutes();return w>=1&&w<=5&&m>=810&&m<1200;}
+function feedState(){
+  const open=S.market.feedOverride===null?marketOpen():S.market.feedOverride;
+  const age=now()-S.market.feedAt;
+  return {open,stale:!open||age>120,paused:false,inRange:S.market.pfePrice>5&&S.market.pfePrice<200,age};
+}
+function tickFeed(){
+  const fs=feedState();
+  if(fs.open){S.market.pfePrice=Math.max(6,S.market.pfePrice*(1+(Math.random()-0.5)*0.004));S.market.feedAt=now();
+    if(S.treasury.sleeveUsdgPending>0){ // Safe executes the fallback purchase once the feed is live
+      const q=S.treasury.sleeveUsdgPending/S.market.pfePrice;S.treasury.sleevePfe+=q;
+      log("Safe bought "+f2(q)+" PFE for "+fmt(S.treasury.sleeveUsdgPending)+" USDG (fallback path)");S.treasury.sleeveUsdgPending=0;toast("SAFE EXECUTED PENDING PFE PURCHASE");}
+  }
+  S.market.umbrellaPrice=Math.max(0.5,S.market.umbrellaPrice*(1+(Math.random()-0.5)*0.003));
+}
+/* ---- bond purchase ---- */
+let pending=null;
+function setAmt(v){document.getElementById("bd-amt").value=v;renderBond();}
+function quote(amt){
+  const fee=amt*P.purchaseFeeBps/1e4,net=amt-fee,price=bondPrice(),payout=net/price;
+  const remit=net*P.remittanceBps/1e4,toPfe=net-remit;
+  return {amt,fee,net,price,payout,remit,toPfe,discount:1-price/S.market.umbrellaPrice,pfeQty:toPfe/S.market.pfePrice};
+}
+function renderBond(){
+  const amt=Math.max(0,parseFloat(document.getElementById("bd-amt").value)||0),q=quote(amt),fs=feedState();
+  const canMint=excessReserves()>=q.payout*P.backingPerUmb;
+  document.getElementById("bd-quote").innerHTML=`<div class="result">
+      <div class="r"><div class="k">→ YOU RECEIVE<i><span style="color:${q.discount>=0?'#9dff7a':'#ffb347'}">${(Math.abs(q.discount)*100).toFixed(1)}% ${q.discount>=0?'discount':'premium'}</span> vs market price</i></div><div class="v">${f2(q.payout)}<small>UMBRELLA</small></div></div>
+      <div class="r"><div class="k">→ YOU EARN<i>≈ $${f2(perDay(q.payout)*S.market.umbrellaPrice)} per day</i></div><div class="v">+${f2(perDay(q.payout))}<small>UMBRELLA / DAY</small></div></div>
+    </div>`;
+  const b=document.getElementById("bd-buy");
+  b.disabled=!(amt>0&&amt<=S.wallet.usdg&&canMint);
+  b.textContent=amt>S.wallet.usdg?"INSUFFICIENT USDG":!canMint?"EXCESS RESERVES TOO LOW":"BUY VIRUS ›";
+}
+function toggleFeed(){S.market.feedOverride=S.market.feedOverride===null?!marketOpen():null;renderTreasury();}
+function buyBond(){
+  const amt=parseFloat(document.getElementById("bd-amt").value)||0;if(amt<=0||amt>S.wallet.usdg)return;
+  const q=quote(amt);if(excessReserves()<q.payout*P.backingPerUmb){toast("EXCESS RESERVES TOO LOW");return;}
+  pending={q,seed:Math.random()*100,id:S.nextId};
+  closeSheets();
+  document.getElementById("nm-sub").textContent="VIRUS #"+String(pending.id).padStart(4,"0");
+  document.getElementById("nm-input").value="";
+  document.getElementById("plaque").classList.add("on");document.getElementById("dimmer").classList.add("on");
+  naming=true;
+}
+function shuffleName(){const el=document.getElementById("nm-input");let n=PET_POOL[Math.floor(Math.random()*PET_POOL.length)];if(n===el.value)n=PET_POOL[(PET_POOL.indexOf(n)+1)%PET_POOL.length];el.value=n;flash();}
+function cancelName(){pending=null;naming=false;document.getElementById("plaque").classList.remove("on");document.getElementById("dimmer").classList.remove("on");}
+function confirmName(){
+  if(!pending)return;
+  const {q,seed,id}=pending,fs=feedState();
+  const name=(document.getElementById("nm-input").value||"").trim().toUpperCase()||PET_POOL[Math.floor(Math.random()*PET_POOL.length)];
+  // money in
+  S.wallet.usdg-=q.amt;S.treasury.feesUsdg+=q.fee;S.treasury.coreUsdg+=q.remit+q.fee;
+  if(fs.stale){S.treasury.sleeveUsdgPending+=q.toPfe;}else{S.treasury.sleevePfe+=q.pfeQty;}
+  // mint against excess reserves; the payout sits in the NFT's token-bound account
+  S.treasury.umbrellaSupply+=q.payout;S.treasury.bondDebt+=q.payout;
+  S.viruses.push({id,name,tba:hex(),principal:q.payout,yield:0,staked:true,mintedAt:now(),seed,lv:1,claimed:false,paidUsdg:q.amt,pfe:fs.stale?0:q.pfeQty,path:fs.stale?"FALLBACK":"ATOMIC"});
+  S.nextId++;
+  log(name+" minted · "+f2(q.payout)+" UMBRELLA bond for "+fmt(q.amt)+" USDG ("+(fs.stale?"fallback":"atomic")+" PFE path)");
+  cancelName();flash();toast(name+" RELEASED · "+f2(q.payout)+" UMBRELLA LOCKED");
+  sel=S.viruses.length-1;focus=sel;setTimeout(()=>{focus=null;},2600);
+  save();renderAll();
+}
+/* ---- staking + rebase ---- */
+function rebase(){
+  const staked=S.viruses.filter(v=>v.staked&&!v.claimed);
+  let minted=0;
+  for(const v of staked){const g=(v.principal+v.yield)*P.rewardRate;if(excessReserves()-minted>=g){v.yield+=g;minted+=g;}}
+  S.treasury.umbrellaSupply+=minted;
+  S.treasury.bondDebt=Math.max(0,S.treasury.bondDebt*(1-P.debtDecayPerEpoch));
+  S.epoch++;S.lastRebaseAt=now();
+  for(const v of S.viruses)v.lv=Math.min(10,1+Math.floor(Math.log2(1+(v.principal+v.yield)/120)));
+  if(staked.length)log("Epoch "+S.epoch+" rebase · +"+f2(minted)+" UMBRELLA credited to "+staked.length+" staked TBA"+(staked.length===1?"":"s"));
+}
+function toggleStake(i){const v=S.viruses[i];v.staked=!v.staked;log(v.name+(v.staked?" staked":" unstaked")+" — "+(v.staked?"earning rebases":"not earning"));save();renderAll();}
+function transferVirus(i){
+  const v=S.viruses[i];const to=prompt("Transfer "+v.name+" (principal + accrued yield as one unit) to address:","0x");
+  if(!to||to.length<6)return;
+  S.viruses.splice(i,1);log(v.name+" transferred to "+short(to)+" with "+f2(v.principal+v.yield)+" UMBRELLA inside");
+  sel=Math.min(sel,S.viruses.length-1);save();renderAll();toast("TRANSFERRED "+v.name);
+}
+let addAmt="";
+function renderAddQuote(){
+  const el=document.getElementById("ad-quote"),btn=document.getElementById("ad-btn");if(!el)return;
+  const amt=Math.max(0,parseFloat(addAmt)||0);
+  if(!amt){el.textContent="Moves UMBRELLA from your wallet into this virus, so it earns on the bigger balance. You get it back when you claim.";btn.disabled=true;btn.textContent="STAKE MORE ›";return;}
+  const ok=amt<=S.wallet.umbrella+1e-9;
+  el.innerHTML=`<b>+${f2(amt)} UMBRELLA</b> staked · earns about <b>+${f2(perDay(amt))} / day</b> more`;
+  btn.disabled=!ok;btn.textContent=ok?"STAKE "+f2(amt)+" UMBRELLA ›":"NOT ENOUGH UMBRELLA IN WALLET";
+}
+function addToVirus(i){
+  const v=S.viruses[i],amt=parseFloat(addAmt)||0;if(!v||amt<=0||amt>S.wallet.umbrella+1e-9)return;
+  S.wallet.umbrella-=amt;v.principal+=amt;if(!v.staked)v.staked=true;
+  v.lv=Math.min(10,1+Math.floor(Math.log2(1+(v.principal+v.yield)/120)));
+  log(v.name+" topped up · +"+f2(amt)+" UMBRELLA staked from wallet");
+  addAmt="";stakeOpen=false;flash();toast("+"+f2(amt)+" UMBRELLA STAKED INTO "+v.name);save();renderAll();
+}
+// other holders claiming in the current one-minute window (deterministic per minute, so it shifts every minute)
+function crowdClaims(){const m=Math.floor(now()/60);const x=Math.sin(m*12.9898)*43758.5453;const r=x-Math.floor(x);return r<0.35?0:r<0.6?1:r<0.8?2:r<0.92?3:r<0.98?5:8;}
+function claimsInWindow(){const t=now(),w0=Math.floor(t/60)*60;return crowdClaims()+S.claims.filter(c=>c>=w0).length;}
+function claimFeeRate(){return Math.min(P.claimMaxBps,P.claimBaseBps+P.claimStepBps*claimsInWindow())/1e4;}
+function claimVirus(i){
+  const v=S.viruses[i],rate=claimFeeRate(),gross=v.principal+v.yield,fee=gross*rate,burn=fee/2,redis=fee/2,net=gross-fee;
+  if(!confirm("CLAIM "+v.name+"?\n\nReceive "+f2(net)+" UMBRELLA ("+f2(gross)+" − "+(rate*100).toFixed(1)+"% claim fee; "+claimsInWindow()+" holders claiming this minute).\nThe Virus NFT is burned. This is one-shot."))return;
+  S.wallet.umbrella+=net;S.treasury.umbrellaSupply-=burn;S.treasury.burned+=burn;S.treasury.bondDebt=Math.max(0,S.treasury.bondDebt-v.principal);
+  const rest=S.viruses.filter((x,j)=>j!==i&&x.staked);
+  const totalW=rest.reduce((a,x)=>a+x.principal+x.yield,0);
+  for(const x of rest)x.yield+=totalW>0?redis*(x.principal+x.yield)/totalW:redis/rest.length;
+  if(!rest.length)S.treasury.umbrellaSupply-=redis,S.treasury.burned+=redis; // nobody left to receive: burn it too
+  S.claims.push(now());S.viruses.splice(i,1);
+  log(v.name+" claimed · "+f2(net)+" UMBRELLA paid, "+f2(burn)+" burned, "+f2(redis)+" redistributed to "+rest.length+" staked");
+  sel=Math.min(sel,S.viruses.length-1);flash();toast(v.name+" BURNED · +"+f2(net)+" UMBRELLA");
+  save();renderAll();
+}
+/* ---- rendering: sheets ---- */
+let sel=0,hover=-1,focus=null,naming=false,stakeOpen=false;
+function openSheet(n){closeSheets();document.getElementById("sh-"+n).classList.add("on");if(n==="bond")renderBond();if(n==="viruses")renderViruses();if(n==="treasury")renderTreasury();if(n==="board")renderBoard();}
+function closeSheets(){document.querySelectorAll(".sheet").forEach(e=>e.classList.remove("on"));}
+function renderViruses(){
+  const list=document.getElementById("vr-list"),det=document.getElementById("vr-detail");
+  const px=S.market.umbrellaPrice;
+  const day=S.viruses.reduce((a,v)=>a+(v.staked?perDay(v.principal+v.yield):0),0);
+  const earned=S.viruses.reduce((a,v)=>a+v.yield,0);
+  const hold=S.viruses.reduce((a,v)=>a+v.principal+v.yield,0);
+  const stakedN=S.viruses.filter(v=>v.staked).length;
+  document.getElementById("vr-sub").textContent=S.viruses.length+" VIRUS"+(S.viruses.length===1?"":"ES")+" · "+stakedN+" EARNING";
+  if(!S.viruses.length){list.innerHTML='<div class="empty">NO VIRUSES YET — BUY A VIRUS TO START EARNING</div>';det.innerHTML="";return;}
+  list.innerHTML=S.viruses.map((v,i)=>{const d=v.staked?perDay(v.principal+v.yield):0;return `<div class="card ${i===sel?'sel':''}" onclick="sel=${i};focus=${i};renderViruses()">
+      <canvas width="112" height="112" data-i="${i}"></canvas>
+      <div><div class="nm">${v.name}</div><div class="mt">${originName(v)} · <span class="st ${v.staked?'on':'off'}">${v.staked?'EARNING':'PAUSED · NOT STAKED'}</span></div></div>
+      <div><div class="yl" style="${v.staked?'':'color:#ffb347'}">+${f2(d)}<small>UMBRELLA / DAY</small></div><div class="ed">+${f2(v.yield)} <small>EARNED</small></div></div></div>`;}).join("");
+  list.querySelectorAll("canvas").forEach(c=>{const v=S.viruses[+c.dataset.i];if(window.P3D)P3D.icon(c,v.seed,v.lv,0,0,v.principal);});
+  const v=S.viruses[sel];if(!v){det.innerHTML="";return;}
+  const rate=claimFeeRate(),gross=v.principal+v.yield,fee=gross*rate,d=v.staked?perDay(gross):0;
+  det.innerHTML=`<div class="detail">
+    <div class="row t">${v.name}</div>
+    <div class="row"><span>EARNING PER DAY</span><b style="color:${v.staked?'#9dff7a':'#ffb347'}">${v.staked?'+'+f2(d)+' UMBRELLA':'0 — NOT STAKED'}</b></div>
+    <div class="row"><span>EARNED SO FAR</span><b style="color:#9dff7a">+${f2(v.yield)} UMBRELLA</b></div>
+    <div class="row"><span>YOU PUT IN</span><b>${f2(v.principal)} UMBRELLA <span style="color:var(--dim);font-weight:400">(${fmt(v.paidUsdg)} USDG paid)</span></b></div>
+    <div class="row"><span>WORTH NOW</span><b>${f2(gross)} UMBRELLA ≈ $${f2(gross*px)}</b></div>
+    <div class="row"><span>IF YOU CLAIM NOW</span><b>${f2(gross-fee)} UMBRELLA <span style="color:var(--dim);font-weight:400">(${(rate*100).toFixed(1)}% fee)</span></b></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="toggleStake(${sel})">${v.staked?'PAUSE EARNING (UNSTAKE)':'START EARNING (STAKE)'}</button>
+      <button class="btn ghost" onclick="stakeOpen=!stakeOpen;renderViruses()">${stakeOpen?'CANCEL':'STAKE MORE'}</button>
+      ${stakeOpen?`<div style="grid-column:1/-1;padding:10px;border:1px solid var(--line);background:rgba(4,40,8,.45)">
+        <div class="lab" style="margin-top:0">HOW MUCH UMBRELLA TO STAKE · WALLET ${f2(S.wallet.umbrella)}</div>
+        <div class="presets" style="margin:0 0 8px">${[0.25,0.5,0.75,1].map(k=>`<div onclick="addAmt=(S.wallet.umbrella*${k}).toFixed(2);document.getElementById('ad-amt').value=addAmt;renderAddQuote()">${k===1?'MAX':Math.round(k*100)+'%'}</div>`).join('')}</div>
+        <div class="inp"><input id="ad-amt" type="number" inputmode="decimal" min="0" placeholder="UMBRELLA" value="${addAmt||''}" oninput="addAmt=this.value;renderAddQuote()"></div>
+        <div class="note" id="ad-quote"></div>
+        <button class="btn" id="ad-btn" onclick="addToVirus(${sel})">STAKE ›</button>
+      </div>`:''}
+      <button class="btn warn" style="grid-column:1/-1" onclick="claimVirus(${sel})">CLAIM ${f2(gross-fee)} UMBRELLA · BURNS VIRUS</button>
+    </div>
+    <div class="note">Claiming pays you everything inside the virus minus the claim fee and destroys it. <b>Claim fee is ${(rate*100).toFixed(1)}% right now</b> — it depends on how many holders claim in the same one-minute window (${claimsInWindow()} claiming now). Fewer claims at once = lower fee; it resets every minute. Half the fee is burned, half goes to the viruses still staked.</div>
+  </div>`;
+  if(stakeOpen)renderAddQuote();
+}
+function renderBoard(){
+  const rows=[
+    ...S.viruses.map(v=>({name:v.name,owner:"YOU · "+short(v.tba),origin:originName(v),staked:v.staked,value:v.principal+v.yield,me:true})),
+    ...S.others.map(o=>({name:o.name,owner:o.owner,origin:originOf(o).n.toUpperCase(),staked:o.staked,value:otherValue(o),me:false})),
+  ].map(r=>({...r,day:r.staked?perDay(r.value):0})).sort((a,b)=>b.day-a.day).slice(0,100);
+  const mine=rows.filter(r=>r.me).length,best=rows.findIndex(r=>r.me);
+  document.getElementById("lb-sub").textContent="TOP 100 VIRUSES · UMBRELLA / DAY"+(mine?" · YOUR BEST RANK #"+(best+1):" · BUY A VIRUS TO ENTER");
+  document.getElementById("lb-list").innerHTML=rows.map((r,i)=>`<div class="lb ${r.me?'me':''} ${i<3?'podium':''}">
+      <div class="rk">${i+1}</div>
+      <div><div class="nm">${r.name}</div><div class="mt">${r.owner} · ${r.origin}${r.staked?'':' · UNSTAKED'}</div></div>
+      <div class="ea">+${f2(r.day)}<small>UMBRELLA / DAY</small></div></div>`).join("")||'<div class="empty">NO VIRUSES</div>';
+}
+function renderTreasury(){
+  const fs=feedState(),ex=excessReserves(),sleeveVal=S.treasury.sleevePfe*S.market.pfePrice;
+  document.getElementById("tr-body").innerHTML=`
+    <div class="row t">CORE TREASURY (RESERVE ACCOUNTING)</div>
+    <div class="row"><span>USDG RESERVES</span><b>${fmt(S.treasury.coreUsdg)}</b></div>
+    <div class="row"><span>UMBRELLA SUPPLY</span><b>${fmt(S.treasury.umbrellaSupply)}</b></div>
+    <div class="row"><span>BACKING PER UMBRELLA</span><b>${f2(S.treasury.coreUsdg/Math.max(1,S.treasury.umbrellaSupply))} USDG</b></div>
+    <div class="row"><span>EXCESS RESERVES (MINTABLE)</span><b style="color:${ex>0?'#9dff7a':'#ffb347'}">${fmt(ex)}</b></div>
+    <div class="row"><span>OUTSTANDING BOND DEBT</span><b>${fmt(S.treasury.bondDebt)} · ratio ${(debtRatio()*100).toFixed(2)}%</b></div>
+    <div class="row"><span>BURNED VIA CLAIMS</span><b>${f2(S.treasury.burned)}</b></div>
+    <div class="row"><span>PURCHASE FEES COLLECTED</span><b>${f2(S.treasury.feesUsdg)} USDG</b></div>
+    <div class="row t">RWA SLEEVE (SEPARATE SAFE · NOT BACKING)</div>
+    <div class="row"><span>PFE HELD</span><b>${f2(S.treasury.sleevePfe)} · ${fmt(sleeveVal)} USDG</b></div>
+    <div class="row"><span>USDG AWAITING SAFE PURCHASE</span><b>${fmt(S.treasury.sleeveUsdgPending)}</b></div>
+    <div class="status">
+      <span class="tag ${fs.stale?'bad':'ok'}">CHAINLINK PFE ${f2(S.market.pfePrice)} · ${fs.stale?'STALE':'FRESH'} · ${Math.round(fs.age)}s</span>
+      <span class="tag ${fs.open?'ok':'bad'}">MARKET ${fs.open?'OPEN':'CLOSED'}</span>
+      <span class="tag info" style="cursor:pointer" onclick="toggleFeed()">${S.market.feedOverride===null?'SIMULATE AFTER-HOURS':'USE REAL CLOCK'}</span>
+    </div>
+    <div class="note">PFE is protocol-owned equity exposure held outside Olympus-style reserve accounting, so it can never be used to mint UMBRELLA. How its value or dividends flow back to Virus holders is not yet defined.</div>
+    <div class="row t">STAKING</div>
+    <div class="row"><span>EPOCH</span><b>${S.epoch} · next rebase in ${Math.max(0,Math.ceil(EPOCH_SEC-(now()-S.lastRebaseAt)))}s</b></div>
+    <div class="row"><span>REWARD RATE</span><b>${(P.rewardRate*100).toFixed(2)}% / epoch</b></div>
+    <button class="btn ghost" onclick="openSheet('how')">HOW IT WORKS</button>
+    <div class="row t">EVENT LOG</div>
+    ${S.log.slice(0,12).map(e=>`<div class="row" style="font-size:11px"><span>${e.m}</span></div>`).join("")||'<div class="empty">NO EVENTS</div>'}`;
+}
+function renderWallet(){document.getElementById("ch-usdg").innerHTML="<b>"+fmt(S.wallet.usdg)+"</b> USDG";document.getElementById("ch-umb").innerHTML="<b>"+f2(S.wallet.umbrella)+"</b> UMBRELLA";}
+function renderAll(){renderWallet();if(document.getElementById("sh-viruses").classList.contains("on"))renderViruses();if(document.getElementById("sh-treasury").classList.contains("on"))renderTreasury();if(document.getElementById("sh-bond").classList.contains("on"))renderBond();if(document.getElementById("sh-board").classList.contains("on"))renderBoard();}
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("on"),2200);}
+function flash(){const f=document.getElementById("flash");f.style.opacity=1;setTimeout(()=>f.style.opacity=0,90);}
+document.getElementById("how-epoch").textContent=EPOCH_SEC;
+document.getElementById("dimmer").addEventListener("click",()=>{if(naming)cancelName();});
+
+/* ================= world map ================= */
+const cv=document.getElementById("stage"),ctx=cv.getContext("2d");
+let W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
+function resize(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+addEventListener("resize",resize);resize();
+const MOB=()=>W<760;
+let MX=-1,MY=-1,tapAt=0;
+addEventListener("mousemove",e=>{MX=e.clientX;MY=e.clientY;});
+const WORLD={"q":[2048,1024],"lat":[84,-58],"c":[{"n":"Fiji","p":0.9,"c":[2037,734],"r":[[2037,732,2039,731,2041,733,2040,737,2036,738,2033,737,2033,734,2035,731,2037,732],[2044,727,2041,728,2040,726,2043,724,2045,724,2048,722]]},{"n":"Tanzania","p":67,"c":[1219,653],"r":[[1217,613,1218,613,1238,628,1239,632,1247,639,1244,648,1245,652,1248,655,1249,657,1247,661,1247,663,1247,667,1249,671,1251,679,1253,680,1249,684,1243,687,1239,687,1237,689,1233,689,1232,690,1225,688,1221,689,1219,679,1217,676,1216,674,1210,672,1207,670,1204,669,1201,668,1199,666,1196,657,1193,653,1191,649,1192,645,1191,638,1193,638,1195,635,1198,631,1199,630,1199,628,1198,626,1197,623,1199,622,1199,618,1197,614,1199,613,1205,613,1217,613]]},{"n":"W. Sahara","p":0.6,"c":[957,426],"r":[[975,406,975,407,975,408,975,419,956,419,956,437,951,438,949,442,950,452,928,452,927,454,927,451,940,451,941,448,943,445,945,435,953,427,956,418,957,417,959,412,964,411,966,412,969,412,970,410,974,410,974,406,975,406]]},{"n":"Canada","p":40,"c":[508,199],"r":[[325,252,324,252,313,245,309,242,299,239,296,233,297,228,289,225,288,219,282,214,281,211,285,207,284,203,275,198,269,190,265,185,260,181,256,178,253,175,248,177,242,181,237,176,233,173,227,171,222,171,222,130,222,103,233,105,242,108,247,109,252,106,259,104,268,105,276,101,286,100,290,103,294,101,295,97,299,98,309,105,316,100,317,105,324,104,326,102,333,102,342,105,355,108,363,109,368,109,376,113,368,116,378,118,394,117,399,116,405,120,411,116,405,113,409,111,416,110,420,110,425,111,430,115,437,115,447,118,456,117,464,117,463,112,468,111,477,114,477,120,481,115,485,115,488,108,482,103,475,100,476,92,482,87,490,88,496,91,503,100,498,103,509,105,509,112,516,106,523,111,522,116,527,121,533,116,537,110,537,102,546,102,554,103,562,107,562,111,558,114,562,118,561,122,550,127,542,128,536,126,534,129,529,135,527,139,521,144,512,144,508,147,508,152,501,153,494,158,488,167,486,172,485,181,494,182,496,189,499,194,507,193,517,196,523,199,527,202,534,204,540,207,550,207,556,208,555,214,557,222,561,230,569,236,574,234,577,227,574,215,570,212,579,208,585,203,589,198,588,193,584,187,577,182,584,174,582,168,580,156,584,155,593,157,599,157,604,155,609,158,616,162,618,165,628,165,628,171,630,181,635,182,639,186,647,182,653,174,657,171,661,177,668,186,675,195,672,199,680,204,685,208,694,210,698,212,700,218,705,219,707,222,707,230,703,232,699,235,690,238,682,243,673,245,661,243,652,243,646,244,642,249,634,252,626,261,619,268,624,267,633,257,645,251,654,251,659,254,654,259,655,267,657,272,665,276,674,275,680,267,680,272,684,275,677,279,664,284,659,287,652,292,648,291,648,285,657,279,648,279,642,280,638,276,638,266,636,264,632,265,630,264,626,269,624,275,622,278,620,279,618,279,617,281,607,281,598,281,596,283,590,288,589,288,587,291,582,291,576,291,574,292,575,294,575,296,575,297,567,300,562,301,555,305,554,305,552,304,551,303,551,302,552,300,555,296,557,292,556,285,554,279,548,275,549,274,548,273,547,273,546,272,545,270,544,271,543,271,543,270,542,269,541,268,537,265,532,263,527,260,521,257,516,259,514,260,507,258,503,259,497,256,491,255,487,255,486,254,485,250,483,250,483,252,471,252,451,252,432,252,415,252,398,252,381,252,364,252,358,252,341,252,325,252],[546,155,550,152,558,152,558,154,551,157,547,157,546,155],[570,81,564,77,564,74,567,74,580,75,590,79,590,81,584,80,578,80,572,81,570,81],[567,158,569,156,572,156,573,158,571,161,568,161,567,159,567,158],[491,65,488,68,480,67,473,65,476,62,484,60,489,63,491,65],[490,47,488,47,477,46,475,44,487,45,491,46,490,47],[474,38,480,40,479,43,470,44,466,43,463,40,463,37,470,37,474,38],[523,69,513,68,498,66,496,62,496,59,490,55,478,55,471,52,474,49,485,50,492,52,503,52,508,54,506,57,513,59,517,60,524,61,533,61,542,60,553,59,562,60,569,62,570,65,566,67,558,69,551,68,534,69,523,69],[391,42,399,43,397,45,387,48,378,45,383,43,391,42],[393,37,400,39,393,40,384,40,384,39,390,37,393,37],[708,236,705,240,701,247,705,244,708,246,706,248,711,250,714,248,720,251,718,256,722,255,723,258,724,263,722,269,720,270,716,268,717,262,715,261,709,268,705,267,709,264,704,262,698,263,687,262,686,260,690,258,687,256,692,251,698,240,701,236,706,233,709,234,708,236],[547,136,553,139,560,141,560,144,564,144,568,146,563,148,554,147,551,143,546,147,537,151,536,147,528,148,533,144,533,138,535,132,540,132,541,135,544,134,547,136],[576,84,581,81,594,85,602,88,602,91,613,90,619,94,633,97,638,100,643,107,633,110,646,115,655,116,663,123,672,124,670,129,660,137,653,134,644,127,637,128,636,132,642,136,650,140,652,141,656,149,654,154,647,152,633,146,641,152,647,157,648,159,632,156,620,152,613,149,615,147,607,143,598,139,598,141,582,143,577,140,581,135,592,135,603,134,601,131,603,128,611,121,609,117,607,115,598,111,587,109,590,107,584,103,579,102,575,100,572,102,561,103,541,101,529,99,520,98,515,95,521,92,513,92,511,85,515,78,521,75,536,74,532,78,536,83,541,77,556,74,565,81,565,86,576,84],[486,71,498,71,509,73,501,80,494,81,488,86,481,86,478,80,478,76,481,73,486,71],[325,57,335,51,346,47,355,47,363,46,362,51,358,54,352,54,342,57,333,58,325,57],[269,216,274,215,273,224,278,229,275,229,272,226,270,223,267,221,266,217,266,215,269,216],[424,34,435,35,450,37,455,41,457,44,448,43,438,41,426,41,431,38,424,37,424,34],[321,256,319,257,309,254,307,251,302,249,301,247,295,245,293,241,294,240,300,241,303,242,309,243,311,246,313,249,319,252,321,256],[333,69,341,70,355,71,361,73,367,76,360,78,346,83,339,88,339,91,324,94,321,91,308,87,310,84,314,79,319,74,313,70,333,69],[411,59,416,58,422,58,423,61,419,65,400,66,386,69,377,69,376,67,388,64,362,65,354,63,362,56,367,54,383,57,394,61,404,61,395,55,401,52,406,53,408,56,411,59],[418,79,424,82,428,89,430,94,439,97,450,101,449,104,440,105,443,107,441,110,431,109,421,107,415,107,404,110,389,111,379,112,376,108,369,106,363,107,356,101,360,100,369,99,377,100,384,98,373,97,361,97,353,97,350,94,363,92,355,92,345,90,350,84,353,81,369,77,375,78,372,82,384,80,392,83,399,80,404,82,409,89,411,86,407,79,412,78,418,79],[453,81,446,77,453,73,460,75,470,74,471,76,466,79,475,82,474,89,464,92,459,91,455,88,441,83,441,81,453,81],[418,75,425,75,430,76,425,81,416,76,418,75],[464,53,468,56,468,60,466,65,456,66,450,64,450,60,441,61,441,55,447,55,455,53,463,53,464,53],[478,25,482,22,488,22,485,20,498,20,506,24,515,25,524,27,529,31,536,34,528,36,517,41,507,42,496,41,490,38,490,35,494,33,484,33,477,31,474,28,478,25],[503,15,511,14,518,14,529,12,538,10,545,10,551,12,555,8,563,7,573,6,590,6,593,7,610,6,622,6,634,6,650,7,662,8,672,10,672,12,658,15,644,16,639,18,651,18,638,22,629,24,619,30,607,31,604,33,586,34,594,35,590,36,595,39,590,42,581,44,578,47,570,49,571,51,581,50,581,52,566,56,551,54,534,56,526,55,515,54,514,51,525,49,522,44,525,43,541,47,533,42,524,41,528,38,538,36,540,34,532,31,529,27,545,27,550,28,558,25,546,25,526,25,516,23,511,20,504,18,503,15],[596,119,592,122,586,122,585,118,587,114,592,113,597,115,597,118,596,119],[476,105,480,107,476,110,469,108,464,109,456,105,461,103,465,100,471,102,475,103,476,105],[657,246,659,245,666,247,672,250,672,252,670,252,662,250,657,246],[660,267,662,270,666,271,671,271,668,274,666,274,659,271,658,269,660,267]]},{"n":"United States of America","p":340,"c":[510,330],"r":[[325,252,341,252,358,252,364,252,381,252,398,252,415,252,432,252,451,252,471,252,483,252,483,250,485,250,486,254,487,255,491,255,497,256,503,259,507,258,514,260,516,259,521,257,527,260,532,263,537,265,541,268,542,269,543,270,543,271,544,271,545,270,546,272,547,273,548,273,549,274,548,275,554,279,556,285,557,292,555,296,552,300,551,302,551,303,552,304,554,305,555,305,562,301,567,300,575,297,575,296,575,294,574,292,576,291,582,291,587,291,589,288,590,288,596,283,598,281,607,281,617,281,618,279,620,279,622,278,624,275,626,269,630,264,632,265,636,264,638,266,638,276,642,280,643,283,637,286,631,289,625,291,622,295,621,297,621,300,623,304,625,304,625,302,626,303,626,305,622,307,619,307,615,308,613,308,609,308,605,311,613,309,615,311,607,313,603,313,603,312,602,314,603,314,602,319,598,325,597,323,596,323,594,321,596,325,597,326,597,329,595,332,592,337,591,337,593,332,590,329,590,323,589,327,590,331,586,330,590,332,590,339,592,340,592,342,593,349,590,355,584,357,580,361,577,362,574,364,573,367,567,371,564,375,561,379,560,384,561,389,563,395,566,400,566,404,569,412,568,417,568,420,567,424,565,425,562,424,561,421,559,419,556,413,553,407,553,405,554,400,552,396,548,390,546,389,540,392,539,392,536,388,532,387,526,387,521,387,517,387,514,388,515,390,515,393,516,395,515,395,513,394,511,396,507,396,503,392,498,393,494,391,490,391,485,393,480,399,474,402,471,405,470,408,470,413,470,417,471,419,469,419,465,418,461,416,459,412,458,407,454,403,453,399,450,394,446,391,441,391,437,397,433,395,430,393,428,389,426,385,423,382,420,379,418,377,408,377,408,380,404,380,392,380,379,375,371,371,371,370,364,371,358,371,357,367,353,363,350,362,350,360,347,360,345,358,339,357,338,356,337,352,332,345,327,335,327,333,325,331,320,325,319,319,316,315,318,309,317,303,316,297,318,291,318,284,319,277,318,268,316,262,315,258,315,257,324,259,327,266,328,264,327,258,325,252],[140,461,141,462,142,463,143,465,141,467,139,468,138,469,137,468,137,466,136,464,136,463,137,462,137,460,138,460,140,461],[137,456,136,457,134,457,133,456,133,455,132,455,133,454,135,455,137,456],[132,453,132,454,129,454,129,453,132,453],[125,449,125,450,127,452,126,452,124,452,124,450,123,450,125,449],[117,446,117,447,117,448,115,447,115,446,116,445,117,446],[77,170,81,171,82,174,79,175,75,173,71,172,77,170],[152,188,156,188,158,190,154,194,148,197,145,195,144,191,149,189,152,188],[222,103,222,130,222,171,227,171,233,173,237,176,242,181,248,177,253,175,256,178,260,181,265,185,269,190,275,198,284,203,285,207,281,211,278,208,273,206,272,199,264,193,261,187,256,186,247,186,240,184,228,176,223,175,213,172,205,173,194,170,187,167,181,168,182,173,179,174,172,175,167,178,161,179,160,175,163,168,169,166,167,164,160,168,156,173,148,178,152,181,147,186,140,189,135,192,133,195,124,199,123,202,116,205,112,204,107,207,101,209,96,211,87,213,86,212,92,209,97,207,104,203,111,202,113,199,121,195,123,193,127,191,128,185,131,181,124,183,122,182,119,184,115,181,114,183,112,180,106,183,103,183,102,178,103,176,99,173,92,175,87,171,83,169,83,165,79,162,81,158,86,154,88,150,92,150,96,151,101,148,105,148,109,146,108,143,105,141,109,139,106,139,100,140,98,142,94,140,86,141,77,139,75,136,68,132,76,129,88,126,93,126,92,129,104,129,100,125,93,122,89,118,83,115,75,113,78,109,89,109,96,105,97,102,103,99,108,98,119,95,124,95,133,91,142,93,146,96,148,95,158,95,158,97,166,98,172,97,184,99,195,100,200,101,207,100,216,102,222,103],[47,146,51,147,54,146,59,148,64,149,64,150,60,152,55,150,53,149,48,149,47,149,47,146]]},{"n":"Kazakhstan","p":20,"c":[1395,265],"r":[[1521,251,1517,256,1512,256,1512,264,1508,267,1497,264,1493,277,1490,279,1479,282,1484,294,1480,296,1481,300,1477,299,1474,297,1466,296,1456,296,1454,297,1446,294,1443,295,1442,299,1433,297,1429,298,1428,301,1424,302,1417,307,1414,312,1412,313,1411,309,1404,309,1402,303,1400,303,1400,296,1393,290,1383,291,1377,292,1371,286,1367,283,1358,278,1357,277,1342,281,1342,308,1339,308,1335,303,1332,301,1325,302,1323,304,1322,303,1324,300,1323,297,1316,295,1314,288,1310,286,1310,284,1316,285,1316,279,1321,278,1326,279,1327,272,1326,268,1320,268,1315,266,1309,270,1303,271,1300,270,1301,266,1297,261,1293,262,1288,257,1292,251,1290,250,1295,242,1300,246,1301,241,1313,233,1322,233,1334,238,1341,241,1347,238,1356,238,1363,241,1365,239,1373,239,1374,236,1365,231,1371,228,1370,226,1375,224,1371,219,1374,216,1395,214,1398,212,1412,209,1417,206,1427,208,1429,215,1435,214,1442,216,1442,220,1447,220,1461,213,1459,215,1467,221,1479,239,1482,235,1490,239,1498,237,1502,239,1504,243,1508,244,1511,247,1518,246,1521,251]]},{"n":"Uzbekistan","p":35,"c":[1395,309],"r":[[1342,308,1342,281,1357,277,1358,278,1367,283,1371,286,1377,292,1383,291,1393,290,1400,296,1400,303,1402,303,1404,309,1411,309,1412,313,1414,312,1417,307,1424,302,1428,301,1429,302,1425,306,1429,309,1433,307,1440,311,1432,316,1428,316,1426,316,1425,314,1426,310,1418,312,1417,317,1414,321,1409,320,1408,324,1412,325,1413,331,1410,338,1406,336,1402,336,1403,332,1395,329,1389,325,1385,322,1379,317,1376,309,1374,308,1368,308,1366,307,1365,301,1358,297,1353,302,1348,304,1349,308,1342,308]]},{"n":"Papua New Guinea","p":10,"c":[1856,662],"r":[[1826,625,1836,629,1847,634,1850,637,1854,641,1854,645,1864,650,1865,653,1860,654,1861,659,1866,664,1870,671,1873,671,1873,674,1878,676,1876,677,1882,680,1881,682,1878,683,1876,681,1871,680,1865,679,1861,674,1858,670,1855,664,1847,661,1843,663,1839,665,1840,671,1835,673,1832,672,1826,671,1826,648,1826,625],[1892,632,1895,634,1895,638,1893,640,1892,636,1891,633,1888,631,1885,628,1881,626,1883,624,1886,626,1888,627,1890,629,1892,632],[1885,648,1882,650,1879,651,1876,651,1871,649,1868,647,1868,645,1873,646,1876,645,1877,642,1878,642,1879,646,1882,645,1884,643,1887,640,1886,636,1889,636,1891,637,1891,641,1889,645,1886,646,1885,648],[1904,644,1906,646,1909,650,1912,653,1911,655,1909,656,1907,653,1904,648,1903,643,1904,642,1904,644]]},{"n":"Indonesia","p":278,"c":[1716,621],"r":[[1826,625,1826,648,1826,671,1821,666,1815,664,1814,666,1807,666,1809,661,1813,659,1811,651,1809,645,1798,639,1793,638,1784,631,1783,635,1781,635,1779,633,1779,630,1775,626,1781,623,1785,624,1785,622,1776,622,1774,617,1769,616,1767,613,1774,611,1777,608,1786,611,1787,614,1789,626,1795,630,1799,622,1806,618,1811,618,1816,621,1820,623,1826,625],[1735,670,1736,671,1736,673,1732,679,1727,680,1726,680,1727,677,1729,673,1735,670],[1788,655,1787,650,1788,647,1789,645,1790,647,1790,651,1788,655],[1695,576,1691,582,1696,589,1695,593,1701,599,1694,600,1692,605,1693,612,1687,616,1687,624,1685,635,1684,632,1677,635,1675,631,1671,631,1668,628,1662,631,1659,627,1656,628,1651,627,1650,617,1647,615,1645,609,1644,603,1644,596,1648,591,1649,596,1653,600,1656,599,1660,599,1663,596,1666,595,1671,597,1676,595,1679,585,1681,583,1683,575,1690,575,1695,576],[1760,626,1766,628,1768,634,1764,631,1759,630,1756,630,1752,630,1753,626,1760,626],[1746,633,1742,632,1741,629,1746,628,1748,631,1746,633],[1752,590,1752,594,1756,595,1756,598,1756,604,1753,603,1752,608,1754,611,1753,612,1750,608,1749,598,1750,593,1752,590],[1723,599,1730,599,1735,594,1736,596,1732,603,1728,604,1722,603,1713,603,1708,604,1707,609,1712,616,1715,613,1726,610,1725,614,1723,612,1720,617,1715,619,1721,629,1720,631,1725,640,1725,644,1722,646,1719,644,1722,638,1717,641,1715,639,1716,636,1712,632,1712,625,1708,627,1709,635,1709,646,1706,647,1703,645,1705,638,1704,631,1701,631,1700,626,1702,621,1703,616,1706,605,1707,602,1712,596,1716,598,1723,599],[1708,680,1701,675,1706,673,1709,675,1711,678,1711,680,1708,680],[1714,667,1718,667,1723,664,1722,668,1714,670,1706,669,1706,667,1711,665,1714,667],[1697,666,1700,665,1702,669,1695,670,1691,671,1688,671,1690,667,1693,667,1695,664,1697,666],[1641,652,1642,655,1653,655,1654,652,1665,656,1667,661,1675,662,1682,666,1676,669,1669,666,1664,666,1658,666,1653,664,1647,662,1642,661,1640,662,1630,659,1629,656,1623,655,1627,648,1634,649,1639,652,1641,652],[1618,614,1619,619,1621,623,1625,623,1628,628,1626,637,1626,648,1620,648,1615,642,1608,636,1605,632,1601,626,1598,621,1594,610,1589,604,1587,598,1585,593,1580,588,1577,582,1573,578,1567,570,1566,566,1570,567,1579,568,1584,575,1588,580,1591,583,1597,591,1602,591,1607,596,1610,602,1615,605,1612,611,1616,613,1618,614]]},{"n":"Argentina","p":46,"c":[654,873],"r":[[634,985,636,989,639,994,646,998,654,1000,651,1004,646,1004,643,1002,640,1001,634,1001,634,985],[696,824,695,829,693,837,693,844,692,846,692,850,691,854,698,860,698,865,701,868,701,872,695,881,687,885,676,886,669,886,671,890,669,895,670,899,667,902,661,903,656,900,654,902,654,909,658,911,661,909,663,913,658,915,653,919,652,927,651,931,646,931,641,934,640,940,645,945,651,946,649,953,642,957,638,965,633,968,631,972,633,979,636,983,634,983,629,982,615,981,613,977,613,971,609,972,607,969,606,961,611,958,613,954,612,950,615,944,617,934,616,930,619,929,618,926,616,925,617,922,615,919,614,910,616,909,615,900,616,893,618,886,621,884,619,877,619,870,624,865,624,859,627,852,627,846,625,844,623,832,626,825,626,818,628,811,631,804,635,800,634,797,635,795,635,783,641,779,643,772,642,770,647,763,654,765,658,770,660,764,666,765,667,766,678,778,683,779,689,784,695,787,696,790,691,801,696,803,703,804,707,803,712,798,713,791,716,790,719,794,719,800,714,804,710,807,704,814,696,824]]},{"n":"Chile","p":19,"c":[618,880],"r":[[634,985,634,1001,640,1001,643,1002,641,1005,636,1007,634,1007,630,1006,626,1004,620,1003,613,999,607,995,599,987,604,988,612,993,619,996,622,992,624,987,630,984,634,985],[628,733,631,737,632,743,635,746,633,753,636,761,638,771,642,770,643,772,641,779,635,783,635,795,634,797,635,800,631,804,628,811,626,818,626,825,623,832,625,844,627,846,627,852,624,859,624,865,619,870,619,877,621,884,618,886,616,893,615,900,616,909,614,910,615,919,617,922,616,925,618,926,619,929,616,930,617,934,615,944,612,950,613,954,611,958,606,961,607,969,609,972,613,971,613,977,615,981,629,982,634,983,629,983,626,985,621,987,620,994,618,994,611,992,605,987,598,983,596,978,597,974,595,969,594,957,596,950,602,944,594,942,599,936,601,924,607,926,610,911,607,909,605,918,601,917,603,907,605,894,607,889,606,882,605,874,608,873,611,862,615,850,618,840,616,829,618,823,617,814,621,805,622,791,623,776,625,760,625,748,624,738,627,736,628,733]]},{"n":"Dem. Rep. Congo","p":102,"c":[1155,633],"r":[[1191,638,1192,645,1191,649,1193,653,1196,657,1199,666,1197,665,1189,666,1187,667,1186,672,1187,675,1186,684,1185,691,1187,692,1191,695,1192,694,1193,701,1189,701,1186,697,1184,694,1180,693,1179,689,1175,692,1171,691,1169,687,1165,687,1162,687,1162,685,1160,685,1157,684,1154,685,1151,685,1150,686,1150,677,1148,674,1148,670,1149,666,1148,663,1148,658,1141,658,1141,656,1138,656,1138,657,1134,657,1133,662,1132,663,1129,662,1127,663,1123,664,1121,660,1120,658,1118,654,1117,648,1100,648,1098,649,1096,649,1094,650,1093,647,1095,647,1095,644,1096,642,1098,640,1099,641,1101,638,1104,638,1105,640,1107,642,1110,637,1114,634,1115,631,1115,625,1117,618,1120,615,1124,611,1124,609,1124,606,1125,604,1125,600,1126,593,1127,589,1129,585,1129,580,1129,575,1132,572,1135,569,1139,572,1143,575,1147,575,1151,577,1153,572,1154,572,1157,573,1163,569,1165,570,1167,570,1168,568,1170,568,1174,569,1178,569,1180,568,1183,574,1186,575,1187,574,1190,574,1193,573,1194,576,1199,580,1199,589,1201,590,1200,592,1197,594,1195,598,1194,601,1194,607,1192,610,1192,615,1191,617,1190,622,1189,626,1191,629,1191,638]]},{"n":"Somalia","p":18,"c":[1290,559],"r":[[1261,618,1257,612,1257,586,1262,577,1264,575,1267,575,1272,570,1280,570,1296,548,1300,542,1302,538,1302,534,1302,527,1302,524,1302,523,1304,523,1307,522,1310,522,1313,519,1315,519,1315,521,1314,525,1314,529,1313,532,1312,539,1309,547,1305,557,1300,567,1296,575,1289,585,1283,591,1275,598,1269,604,1263,612,1262,616,1261,618]]},{"n":"Kenya","p":55,"c":[1239,598],"r":[[1247,639,1239,632,1238,628,1218,613,1217,613,1217,605,1218,602,1221,597,1223,592,1221,584,1220,580,1217,575,1221,571,1225,566,1228,567,1228,571,1230,574,1234,574,1241,580,1243,580,1244,580,1245,581,1249,581,1251,578,1256,575,1258,577,1262,577,1257,586,1257,612,1261,618,1257,621,1255,624,1253,624,1252,629,1250,632,1249,637,1247,639]]},{"n":"Sudan","p":48,"c":[1191,513],"r":[[1164,546,1159,543,1157,541,1157,539,1158,536,1158,533,1155,528,1154,525,1154,524,1152,522,1152,517,1151,515,1149,515,1149,512,1151,509,1150,506,1152,504,1151,502,1152,498,1155,493,1160,493,1160,465,1160,462,1166,461,1166,447,1189,447,1211,447,1234,447,1236,454,1234,455,1235,463,1237,472,1239,473,1243,476,1240,480,1235,481,1234,483,1233,488,1231,499,1231,502,1230,508,1228,515,1225,519,1222,524,1222,527,1219,529,1217,537,1217,543,1217,538,1216,537,1217,534,1216,531,1213,528,1212,523,1213,518,1210,517,1210,519,1206,519,1208,522,1208,526,1205,530,1202,535,1199,536,1195,532,1193,533,1192,535,1189,536,1189,538,1183,538,1182,536,1178,536,1176,537,1175,537,1172,533,1171,531,1167,532,1165,535,1164,541,1162,543,1160,544,1164,546]]},{"n":"Chad","p":18,"c":[1126,512],"r":[[1160,465,1160,493,1155,493,1152,498,1151,502,1152,504,1150,506,1151,509,1149,512,1149,515,1151,515,1152,517,1152,522,1154,524,1154,525,1150,527,1148,530,1143,537,1138,541,1133,540,1131,541,1132,544,1129,546,1126,549,1119,552,1118,550,1117,550,1116,552,1111,552,1112,550,1110,545,1109,542,1107,541,1103,537,1105,533,1107,534,1109,534,1112,534,1109,527,1109,522,1109,518,1106,513,1107,510,1103,509,1103,505,1101,502,1103,493,1111,486,1111,476,1113,462,1114,459,1112,456,1112,454,1110,452,1108,441,1114,437,1137,451,1160,465]]},{"n":"Haiti","p":11.7,"c":[610,470],"r":[[616,464,617,468,616,470,615,471,616,474,616,476,612,474,610,475,606,474,603,476,600,473,601,471,606,472,610,473,613,471,610,468,610,465,606,464,608,462,611,462,616,464]]},{"n":"Dominican Rep.","p":11,"c":[623,471],"r":[[616,476,616,474,615,471,616,470,617,468,616,464,617,462,621,462,625,464,626,464,627,467,630,466,630,469,633,469,635,472,633,474,631,473,628,473,626,473,625,474,623,475,622,473,620,474,618,479,616,478,616,476]]},{"n":"Russia","p":144,"c":[1462,174],"r":[[1557,21,1570,20,1581,23,1594,30,1593,37,1580,38,1564,36,1555,33,1550,28,1543,26,1557,21],[1609,34,1623,38,1622,41,1590,44,1600,34,1605,34,1609,34],[1814,57,1829,57,1849,61,1845,66,1824,66,1815,68,1803,63,1806,58,1814,57],[1867,62,1881,64,1875,67,1866,67,1855,64,1857,61,1867,62],[1820,77,1825,74,1832,73,1840,76,1841,78,1832,78,1821,77,1820,77],[1279,25,1290,23,1299,23,1300,25,1303,23,1309,22,1317,24,1315,25,1307,26,1302,26,1301,28,1295,29,1289,27,1292,25,1279,25],[1153,214,1143,214,1136,213,1137,210,1145,208,1151,209,1153,210,1153,212,1153,214],[1328,74,1342,68,1340,64,1353,61,1372,56,1391,55,1401,52,1412,51,1416,54,1412,56,1392,60,1374,63,1357,70,1348,77,1339,84,1340,90,1351,96,1348,96,1329,95,1328,92,1318,90,1317,86,1323,85,1322,81,1334,75,1328,74],[1837,218,1839,225,1839,233,1841,240,1847,253,1839,250,1835,261,1841,268,1840,273,1836,269,1832,274,1831,268,1832,261,1831,253,1833,248,1833,238,1830,231,1830,221,1835,218,1833,215,1836,214,1837,218],[1768,301,1767,300,1767,296,1770,296,1771,288,1769,281,1774,279,1781,280,1785,273,1787,265,1789,263,1792,256,1783,258,1778,261,1769,261,1767,254,1760,249,1750,247,1748,240,1746,235,1744,232,1740,225,1735,222,1727,220,1719,220,1712,222,1708,225,1711,227,1711,231,1708,233,1703,241,1703,244,1695,249,1688,246,1681,247,1678,244,1675,243,1666,248,1659,250,1654,251,1646,250,1641,250,1638,247,1632,243,1626,242,1619,243,1614,245,1606,242,1605,236,1598,234,1593,233,1586,230,1581,238,1583,242,1577,247,1569,245,1563,245,1560,242,1554,242,1549,239,1540,243,1529,249,1523,250,1521,251,1518,246,1511,247,1508,244,1504,243,1502,239,1498,237,1490,239,1482,235,1479,239,1467,221,1459,215,1461,213,1447,220,1442,220,1442,216,1435,214,1429,215,1427,208,1417,206,1412,209,1398,212,1395,214,1374,216,1371,219,1375,224,1370,226,1371,228,1365,231,1374,236,1373,239,1365,239,1363,241,1356,238,1347,238,1341,241,1334,238,1322,233,1313,233,1301,241,1300,246,1295,242,1290,250,1292,251,1288,257,1293,262,1297,261,1301,266,1300,270,1303,271,1301,275,1295,277,1290,284,1295,291,1294,296,1300,304,1297,307,1296,309,1294,309,1290,304,1288,304,1284,302,1283,299,1277,298,1274,299,1273,298,1265,294,1257,293,1252,292,1251,293,1244,286,1238,284,1233,279,1237,278,1242,272,1238,269,1247,266,1247,265,1241,266,1242,263,1245,261,1250,260,1251,258,1250,254,1252,250,1252,248,1244,246,1240,246,1237,242,1232,244,1225,241,1225,240,1223,236,1219,236,1218,234,1220,232,1216,228,1210,229,1208,229,1207,230,1205,230,1203,225,1202,223,1203,222,1208,223,1210,221,1208,219,1205,218,1205,217,1203,215,1199,210,1200,209,1200,205,1194,203,1191,204,1190,203,1184,201,1182,196,1182,193,1179,191,1182,189,1180,182,1184,178,1183,177,1190,173,1184,169,1196,160,1201,156,1203,152,1195,147,1197,143,1192,137,1196,131,1189,123,1195,118,1186,113,1187,108,1191,107,1201,104,1207,102,1216,106,1232,108,1253,116,1258,119,1258,124,1252,128,1242,130,1217,124,1213,125,1222,131,1222,134,1223,141,1230,143,1235,145,1235,142,1232,139,1235,136,1249,140,1254,139,1250,133,1263,126,1269,127,1274,129,1277,124,1273,120,1275,116,1271,111,1287,114,1290,118,1283,119,1283,123,1288,125,1296,123,1298,119,1310,115,1330,109,1334,110,1328,114,1335,115,1339,112,1350,112,1359,109,1365,113,1371,109,1365,104,1368,102,1385,104,1393,106,1414,115,1418,111,1412,107,1412,106,1405,105,1407,101,1404,96,1403,94,1414,87,1418,80,1422,79,1437,81,1438,85,1433,91,1436,93,1438,98,1437,108,1443,112,1441,117,1429,127,1436,129,1438,126,1445,124,1446,121,1451,117,1448,113,1450,108,1444,108,1443,104,1447,96,1440,91,1450,86,1449,81,1452,80,1455,84,1452,91,1458,93,1456,87,1465,85,1477,84,1488,88,1483,82,1482,75,1492,73,1506,74,1518,73,1513,69,1520,64,1526,64,1537,60,1553,59,1554,57,1569,57,1574,58,1587,54,1597,55,1599,51,1604,48,1618,45,1627,48,1620,50,1633,51,1634,54,1639,52,1656,53,1669,56,1673,59,1672,63,1666,65,1651,69,1646,71,1653,72,1662,74,1667,72,1670,77,1672,75,1681,74,1700,75,1701,78,1725,80,1725,74,1737,75,1746,75,1756,79,1758,84,1755,87,1762,92,1771,95,1776,88,1786,91,1795,89,1806,91,1810,89,1820,90,1816,84,1823,80,1874,85,1879,89,1894,95,1917,94,1929,95,1933,98,1933,103,1940,105,1947,104,1957,103,1968,105,1979,104,1989,110,1996,108,1991,103,1994,100,2012,102,2024,102,2040,105],[0,108,14,114,29,121,28,126,32,127,31,122,46,123,57,130,52,133,42,134,42,141,40,142,35,142,30,140,23,138,22,134,16,133,9,134,6,132,7,129,1,131,3,134,0,137],[2048,137,2041,140,2033,140,2038,144,2042,150,2044,152,2045,155,2044,156,2033,155,2017,160,2012,161,2003,166,1995,171,1993,174,1985,169,1970,175,1967,172,1962,175,1954,174,1953,179,1946,186,1946,189,1952,190,1952,201,1946,201,1944,207,1946,210,1936,214,1934,222,1926,224,1924,231,1916,238,1914,233,1911,222,1908,206,1911,196,1916,192,1916,189,1925,187,1935,178,1945,171,1955,165,1960,155,1953,155,1949,161,1935,169,1930,160,1916,163,1901,175,1906,179,1893,181,1885,182,1885,177,1876,176,1869,179,1852,178,1833,180,1815,194,1793,211,1802,212,1804,216,1810,218,1814,215,1820,215,1828,223,1828,229,1824,236,1823,245,1821,256,1812,267,1810,272,1803,280,1795,289,1791,293,1784,297,1780,297,1777,294,1769,299,1768,301],[0,90,1,90,6,90,14,92,13,93,7,95,0,95],[1214,274,1216,272,1220,274,1222,274,1222,276,1223,276,1223,277,1226,278,1232,278,1231,280,1224,282,1217,286,1214,284,1215,281,1209,279,1210,277,1215,275,1214,274]]},{"n":"Bahamas","p":0.4,"c":[581,429],"r":[[575,413,577,412,581,412,581,414,575,415,575,413],[581,411,586,414,585,419,584,418,584,414,581,412,581,411],[579,424,581,424,583,430,583,434,582,435,580,431,578,429,579,424]]},{"n":"Falkland Is.","p":0.004,"c":[685,979],"r":[[676,980,683,975,687,977,691,974,695,977,694,980,686,982,684,980,679,983,676,980]]},{"n":"Norway","p":5.5,"c":[1127,128],"r":[[1110,31,1112,29,1121,28,1128,31,1147,36,1132,39,1129,45,1124,46,1121,52,1115,52,1102,48,1107,45,1099,43,1088,37,1083,31,1099,29,1102,31,1110,31],[1201,104,1191,107,1187,108,1189,103,1182,100,1173,102,1170,108,1165,111,1159,109,1151,109,1145,106,1141,107,1138,108,1137,112,1126,111,1125,115,1119,115,1116,120,1110,128,1101,139,1103,141,1101,144,1096,144,1092,151,1092,160,1096,164,1094,172,1089,177,1087,181,1083,177,1072,185,1064,187,1056,183,1054,175,1052,159,1058,154,1073,148,1084,141,1094,131,1108,117,1118,111,1133,102,1146,99,1155,99,1164,94,1174,94,1184,92,1202,98,1195,100,1201,104],[1180,28,1171,32,1155,33,1138,32,1137,30,1129,30,1123,27,1140,25,1149,26,1154,24,1169,26,1180,28],[1165,44,1152,47,1142,46,1146,44,1142,41,1154,40,1156,43,1165,44]]},{"n":"Greenland","p":0.06,"c":[791,71],"r":[[758,10,777,6,797,6,804,3,824,3,870,3,905,9,895,12,873,12,843,13,845,14,866,13,883,16,894,14,898,16,892,21,907,18,934,15,951,16,955,20,931,25,928,26,910,28,923,28,916,33,912,38,912,46,919,51,910,51,901,53,911,57,912,63,906,64,914,70,901,70,908,73,906,76,898,77,890,77,897,82,897,85,886,82,883,84,891,86,898,90,900,96,890,98,886,95,879,91,881,96,874,99,889,100,897,100,882,106,866,112,849,114,843,115,837,117,829,125,817,130,813,130,806,132,798,134,793,138,793,143,790,148,780,154,783,159,780,165,777,172,769,173,761,167,749,167,744,163,740,156,730,147,727,142,727,136,719,129,721,124,717,121,723,113,731,110,733,107,735,101,728,104,725,105,720,106,713,104,713,99,715,95,720,95,732,97,722,92,717,90,711,91,706,89,713,82,709,80,705,75,698,67,691,64,691,61,675,57,663,56,648,57,634,57,628,55,618,50,633,48,644,48,620,46,607,43,608,40,629,37,650,33,652,31,637,28,642,25,662,20,670,19,668,16,681,14,699,13,716,13,722,15,737,11,751,14,759,15,771,17,757,13,758,10]]},{"n":"Timor-Leste","p":1.3,"c":[1740,669],"r":[[1735,670,1736,668,1740,667,1744,666,1746,665,1748,666,1746,668,1740,671,1736,673,1736,671,1735,670]]},{"n":"South Africa","p":60,"c":[1165,812],"r":[[1117,812,1120,808,1122,810,1123,813,1125,814,1129,815,1132,815,1137,811,1137,784,1139,785,1142,792,1142,797,1143,799,1147,798,1150,795,1152,793,1154,790,1157,788,1159,789,1162,791,1166,791,1170,790,1171,787,1172,784,1175,783,1176,781,1178,776,1183,770,1191,765,1194,765,1196,766,1198,765,1201,766,1204,776,1206,781,1205,790,1205,792,1202,791,1201,791,1200,793,1199,796,1199,799,1202,803,1205,802,1206,799,1211,799,1209,804,1209,810,1207,813,1203,817,1202,818,1200,821,1198,825,1195,830,1189,838,1185,842,1180,845,1174,848,1171,849,1171,851,1167,849,1164,851,1158,849,1155,850,1152,850,1147,853,1142,854,1138,857,1136,857,1133,854,1131,854,1129,851,1129,852,1128,850,1128,846,1126,841,1128,840,1128,834,1124,827,1121,821,1117,812]]},{"n":"Lesotho","p":2.3,"c":[1186,819],"r":[[1189,815,1191,817,1189,820,1188,823,1185,824,1184,826,1182,827,1178,821,1181,817,1184,814,1186,812,1189,815]]},{"n":"Mexico","p":128,"c":[437,434],"r":[[358,371,364,371,371,370,371,371,379,375,392,380,404,380,408,380,408,377,418,377,420,379,423,382,426,385,428,389,430,393,433,395,437,397,441,391,446,391,450,394,453,399,454,403,458,407,459,412,461,416,465,418,469,419,471,419,469,426,468,431,468,440,467,444,468,448,470,451,471,457,475,462,476,466,478,470,484,472,487,475,492,473,496,472,500,471,504,470,508,467,509,462,509,456,510,454,514,452,520,451,525,451,529,450,530,452,530,455,527,460,526,464,527,465,526,468,524,474,523,472,522,472,521,472,519,477,518,476,517,476,517,477,512,477,506,477,506,481,504,481,506,484,508,485,509,487,510,487,509,490,502,490,499,496,500,497,499,499,499,501,493,493,490,491,485,489,482,489,478,492,475,493,471,491,466,490,461,486,457,485,450,482,446,478,444,477,441,476,435,474,433,471,427,466,424,462,423,458,424,458,424,456,425,454,425,451,423,448,423,445,421,442,416,434,410,429,407,424,402,421,401,420,402,415,399,413,396,410,395,405,392,404,388,400,386,397,385,395,382,389,380,384,380,381,376,378,374,378,371,376,370,379,371,383,372,388,374,391,378,396,379,398,380,398,380,401,381,401,383,405,384,407,385,410,389,413,391,420,393,423,394,427,394,431,397,431,400,434,402,437,401,439,399,441,398,441,397,437,393,433,389,429,386,427,386,422,385,418,382,416,379,413,378,414,376,412,373,410,369,406,370,405,372,406,374,403,375,400,370,395,367,393,365,388,363,383,360,378,358,371]]},{"n":"Uruguay","p":3.4,"c":[705,842],"r":[[696,824,700,823,706,828,708,828,714,833,718,837,721,842,719,845,720,849,718,854,711,858,707,856,704,857,699,854,695,854,692,850,692,846,693,844,693,837,695,829,696,824]]},{"n":"Brazil","p":216,"c":[700,675],"r":[[720,849,719,845,721,842,718,837,714,833,708,828,706,828,700,823,696,824,704,814,710,807,714,804,719,800,719,794,716,790,713,791,714,787,715,783,715,779,713,778,711,779,709,779,708,776,708,769,707,767,703,765,700,766,694,765,695,755,693,751,695,750,694,746,696,742,697,737,696,732,692,730,692,727,693,723,682,723,680,715,681,714,681,711,680,709,680,705,677,703,673,703,671,701,667,699,664,697,658,696,652,689,652,684,652,682,652,676,645,677,642,680,637,683,636,685,633,685,628,685,625,686,623,685,623,674,618,678,613,678,611,674,607,674,609,671,605,667,603,660,605,659,605,656,608,654,607,650,609,647,609,644,616,639,620,637,621,636,626,637,629,617,629,614,628,610,626,607,626,602,629,601,630,601,630,599,627,598,627,593,638,594,640,591,641,593,642,598,644,597,647,601,651,600,652,598,656,596,659,595,659,592,663,590,663,588,658,588,658,583,658,578,655,576,656,576,661,577,665,579,667,577,671,576,677,573,679,570,678,568,681,568,683,570,682,573,684,574,685,577,684,580,683,586,684,590,685,593,688,596,691,597,692,595,693,595,696,594,698,592,701,592,702,592,705,593,706,591,705,590,706,588,708,588,711,588,714,589,716,591,718,589,719,589,720,591,723,590,725,588,727,582,730,576,732,575,733,579,737,592,740,593,740,598,736,604,737,606,747,607,748,615,752,610,759,613,769,617,771,621,770,625,777,623,788,627,797,626,805,632,812,641,817,643,821,643,824,645,825,654,826,659,824,671,821,675,813,685,810,694,805,700,804,700,802,705,803,719,801,730,801,735,799,737,798,747,792,756,791,764,786,767,785,771,779,771,770,774,766,777,760,779,753,785,748,792,747,798,748,802,747,809,746,813,742,816,736,829,731,835,727,838,724,845,720,849]]},{"n":"Bolivia","p":12,"c":[659,724],"r":[[628,685,633,685,636,685,637,683,642,680,645,677,652,676,652,682,652,684,652,689,658,696,664,697,667,699,671,701,673,703,677,703,680,705,680,709,681,711,681,714,680,715,682,723,693,723,692,727,692,730,696,732,697,737,696,742,694,746,695,750,693,751,693,749,688,745,682,745,673,747,670,754,670,758,667,766,666,765,660,764,658,770,654,765,647,763,642,770,638,771,636,761,633,753,635,746,632,743,631,737,628,733,632,725,629,719,631,716,630,714,632,710,632,704,632,699,633,696,628,685]]},{"n":"Peru","p":34,"c":[603,662],"r":[[626,637,621,636,620,637,616,639,609,644,609,647,607,650,608,654,605,656,605,659,603,660,605,667,609,671,607,674,611,674,613,678,618,678,623,674,623,685,625,686,628,685,633,696,632,699,632,704,632,710,630,714,631,716,629,719,632,725,628,733,627,736,624,738,618,734,617,731,606,724,596,716,592,711,589,705,590,703,585,694,580,681,574,666,572,663,570,658,566,653,562,650,564,647,561,640,563,635,567,630,568,633,566,635,566,638,569,637,571,638,573,642,577,639,578,634,581,627,588,625,594,617,596,612,595,607,597,606,601,610,602,613,605,615,608,622,613,623,616,621,618,623,621,622,626,625,622,633,624,633,626,637]]},{"n":"Colombia","p":52,"c":[611,573],"r":[[644,597,642,598,641,593,640,591,638,594,627,593,627,598,630,599,630,601,629,601,626,602,626,607,628,610,629,614,629,617,626,637,624,633,622,633,626,625,621,622,618,623,616,621,613,623,608,622,605,615,602,613,601,610,597,606,595,607,593,605,590,603,588,604,584,603,582,600,581,600,575,596,575,594,577,593,576,589,578,587,581,586,583,582,585,578,583,576,584,572,583,565,584,564,583,557,581,554,582,550,584,551,585,549,583,544,584,543,587,543,591,538,593,538,594,535,595,529,598,526,601,526,602,524,606,525,611,521,613,520,616,516,618,516,619,518,618,521,615,522,613,526,611,528,609,530,609,536,607,540,610,540,611,544,612,545,612,548,612,551,612,552,613,553,615,555,622,555,625,556,629,562,632,561,636,561,639,561,641,562,640,566,639,568,638,573,639,578,641,580,641,582,638,585,640,587,642,590,644,597]]},{"n":"Panama","p":4.4,"c":[567,545],"r":[[584,543,583,544,585,549,584,551,582,550,581,554,579,552,578,548,579,546,578,545,577,543,574,541,571,541,570,544,568,546,567,546,566,547,569,551,567,552,567,553,564,554,563,549,562,551,560,550,559,547,557,547,555,546,553,546,553,548,552,546,552,545,553,544,553,542,553,541,552,540,552,537,554,537,556,539,556,541,559,541,561,542,563,542,566,540,569,539,571,536,574,537,574,538,577,538,580,539,582,541,584,543]]},{"n":"Costa Rica","p":5.2,"c":[545,535],"r":[[554,537,552,537,552,540,553,541,553,542,553,544,552,545,552,546,549,545,548,543,548,542,548,540,547,539,544,537,542,536,542,534,541,533,541,535,540,537,539,535,537,534,536,533,536,530,537,528,535,527,536,526,537,525,541,527,542,526,544,526,545,528,547,528,548,527,550,531,552,534,554,537]]},{"n":"Nicaragua","p":7,"c":[541,512],"r":[[548,527,547,528,545,528,544,526,542,526,541,527,537,525,536,526,534,524,532,521,531,518,528,516,525,513,526,512,527,513,527,512,529,512,530,510,531,510,530,507,532,506,533,506,534,505,536,506,536,505,538,504,540,502,540,501,541,499,542,500,544,500,545,499,546,499,548,498,549,497,551,498,550,498,550,500,551,503,549,505,549,508,549,511,549,513,549,516,548,517,548,520,548,522,547,524,547,526,548,527]]},{"n":"Honduras","p":10,"c":[533,499],"r":[[551,498,549,497,548,498,546,499,545,499,544,500,542,500,541,499,540,501,540,502,538,504,536,505,536,506,534,505,533,506,532,506,530,507,531,510,530,510,529,512,527,512,526,510,525,509,525,506,524,506,523,505,521,506,520,505,519,504,517,502,516,502,517,500,516,498,517,497,520,495,522,492,523,493,524,491,526,491,526,492,527,491,530,492,532,492,534,491,535,490,537,491,538,491,539,491,541,490,543,491,544,492,546,493,547,495,549,496,551,498]]},{"n":"El Salvador","p":6.3,"c":[518,506],"r":[[516,502,517,502,519,504,520,505,521,506,523,505,524,506,525,506,525,509,524,511,521,511,519,510,516,509,513,508,511,507,512,506,514,504,515,503,514,502,516,502]]},{"n":"Guatemala","p":18,"c":[510,494],"r":[[499,501,499,499,500,497,499,496,502,490,509,490,510,487,509,487,508,485,506,484,504,481,506,481,506,477,512,477,517,477,517,483,516,491,518,491,520,492,520,491,522,492,520,495,517,497,516,498,517,500,516,502,514,502,515,503,514,504,512,506,511,507,509,505,505,505,502,504,499,501]]},{"n":"Belize","p":0.4,"c":[520,480],"r":[[517,477,517,476,518,476,519,477,521,472,522,472,522,473,523,473,523,475,522,479,522,480,522,482,522,483,521,487,520,488,519,489,518,491,516,491,517,483,517,477]]},{"n":"Venezuela","p":28,"c":[644,554],"r":[[678,568,679,570,677,573,671,576,667,577,665,579,661,577,656,576,655,576,658,578,658,583,658,588,663,588,663,590,659,592,659,595,656,596,652,598,651,600,647,601,644,597,642,590,640,587,638,585,641,582,641,580,639,578,638,573,639,568,640,566,641,562,639,561,636,561,632,561,629,562,625,556,622,555,615,555,613,553,612,552,612,551,612,548,612,545,611,544,610,540,607,540,609,536,609,530,611,528,613,526,615,522,618,521,618,523,615,523,617,527,616,530,614,535,616,540,619,540,620,535,618,532,618,527,625,524,624,520,626,518,628,523,632,523,636,527,636,530,641,530,647,529,650,532,655,533,658,531,658,529,665,529,672,528,667,531,669,534,674,535,678,538,679,544,682,544,684,545,680,550,679,552,681,555,680,556,676,557,676,561,675,563,678,568]]},{"n":"Guyana","p":0.8,"c":[689,573],"r":[[702,592,701,592,698,592,696,594,693,595,692,595,691,597,688,596,685,593,684,590,683,586,684,580,685,577,684,574,682,573,683,570,681,568,678,568,675,563,676,561,676,557,680,556,681,555,679,552,680,550,684,545,688,548,691,553,691,556,694,557,697,560,699,563,698,569,695,571,695,573,694,576,696,582,698,582,699,586,702,592]]},{"n":"Suriname","p":0.6,"c":[706,579],"r":[[714,589,711,588,708,588,706,588,705,590,706,591,705,593,702,592,699,586,698,582,696,582,694,576,695,573,695,571,698,569,699,563,706,564,706,563,711,562,717,564,714,570,715,575,717,580,716,583,715,586,714,589]]},{"n":"France","p":65,"c":[1043,267],"r":[[730,576,727,582,725,588,723,590,720,591,719,589,718,589,716,591,714,589,715,586,716,583,717,580,715,575,714,570,717,564,719,565,723,567,729,573,730,576],[1059,249,1062,251,1070,252,1067,257,1066,262,1065,264,1062,263,1063,265,1058,269,1058,272,1061,271,1063,274,1063,276,1064,279,1062,281,1064,287,1067,288,1066,291,1061,295,1050,293,1042,295,1041,299,1034,300,1028,297,1026,299,1015,295,1013,293,1016,288,1017,274,1011,266,1007,263,998,260,998,255,1005,253,1015,255,1013,247,1018,250,1032,244,1033,238,1038,237,1039,239,1042,240,1044,242,1048,246,1051,245,1056,249,1058,249,1059,249],[1074,298,1077,296,1078,302,1077,307,1074,306,1073,301,1074,298]]},{"n":"Ecuador","p":18,"c":[576,618],"r":[[595,607,596,612,594,617,588,625,581,627,578,634,577,639,573,642,571,638,569,637,566,638,566,635,568,633,567,630,570,625,569,622,567,625,563,622,565,620,564,613,566,612,567,608,569,603,568,600,572,599,575,596,581,600,582,600,584,603,588,604,590,603,593,605,595,607]]},{"n":"Puerto Rico","p":3.2,"c":[646,474],"r":[[647,472,650,473,651,474,649,476,645,476,642,476,641,473,642,472,647,472]]},{"n":"Jamaica","p":2.8,"c":[584,475],"r":[[583,472,587,473,590,475,591,477,587,477,585,478,582,477,578,474,579,473,581,472,583,472]]},{"n":"Cuba","p":11,"c":[571,449],"r":[[556,439,561,439,565,439,571,442,573,444,578,443,580,445,585,450,589,453,591,453,594,454,594,456,598,457,602,459,601,461,598,462,594,462,590,462,582,463,585,459,583,457,579,456,578,454,576,450,573,450,568,448,566,447,559,446,557,444,559,443,553,442,549,446,547,446,546,448,543,449,541,448,544,446,545,443,547,441,550,440,555,439,556,439]]},{"n":"Zimbabwe","p":16,"c":[1193,742],"r":[[1201,766,1198,765,1196,766,1194,765,1191,765,1188,762,1183,761,1182,756,1182,754,1179,753,1173,745,1171,741,1170,739,1168,734,1174,734,1176,735,1178,735,1181,730,1186,725,1188,724,1189,721,1192,719,1196,718,1197,720,1201,720,1204,722,1205,723,1208,724,1211,726,1211,735,1210,740,1210,746,1210,748,1210,752,1209,753,1207,758,1201,766]]},{"n":"Botswana","p":2.7,"c":[1163,768],"r":[[1191,765,1183,770,1178,776,1176,781,1175,783,1172,784,1171,787,1170,790,1166,791,1162,791,1159,789,1157,788,1154,790,1152,793,1150,795,1147,798,1143,799,1142,797,1142,792,1139,785,1137,784,1137,763,1143,763,1143,737,1147,737,1156,735,1158,738,1162,735,1164,735,1167,733,1168,734,1170,739,1171,741,1173,745,1179,753,1182,754,1182,756,1183,761,1188,762,1191,765]]},{"n":"Namibia","p":2.6,"c":[1125,762],"r":[[1137,784,1137,811,1132,815,1129,815,1125,814,1123,813,1122,810,1120,808,1117,812,1113,806,1111,801,1109,794,1108,789,1106,778,1106,769,1105,765,1103,762,1100,756,1097,748,1096,743,1091,736,1091,731,1093,729,1097,728,1101,728,1104,731,1105,731,1128,731,1132,734,1146,735,1156,732,1161,730,1164,731,1167,733,1164,735,1162,735,1158,738,1156,735,1147,737,1143,737,1143,763,1137,763,1137,784]]},{"n":"Senegal","p":18,"c":[941,505],"r":[[929,508,927,502,924,500,926,498,929,493,930,489,932,487,935,488,938,486,941,486,944,488,948,490,951,495,955,500,955,505,956,509,958,511,959,514,958,516,955,516,954,517,953,517,949,515,946,515,936,515,934,515,932,515,929,516,928,511,933,511,935,510,936,510,938,508,940,510,943,510,945,508,944,506,942,507,940,507,938,506,936,506,935,508,929,508]]},{"n":"Mali","p":23,"c":[991,504],"r":[[958,516,959,514,958,511,956,509,955,505,955,500,957,499,958,495,959,495,963,497,967,495,969,496,970,494,992,494,994,489,993,488,990,457,987,426,996,426,1015,441,1034,457,1036,460,1039,463,1042,464,1042,468,1048,468,1048,484,1045,489,1045,493,1040,495,1032,495,1030,498,1026,498,1022,498,1021,497,1018,498,1013,501,1012,503,1007,506,1006,508,1004,510,1001,509,1000,510,999,515,994,521,994,524,993,527,993,531,991,532,990,533,989,530,987,531,986,531,985,533,981,533,979,531,978,532,977,530,977,528,976,527,975,528,975,525,976,524,974,521,973,519,972,517,971,517,970,518,968,519,966,520,964,520,962,518,961,518,960,519,959,519,958,516]]},{"n":"Mauritania","p":4.9,"c":[953,470],"r":[[927,454,928,452,950,452,949,442,951,438,956,437,956,419,975,419,975,408,996,426,987,426,990,457,993,488,994,489,992,494,970,494,969,496,967,495,963,497,959,495,958,495,957,499,955,500,951,495,948,490,944,488,941,486,938,486,935,488,932,487,930,489,930,486,931,482,932,475,932,468,931,464,931,461,930,457,927,454]]},{"n":"Benin","p":13.7,"c":[1037,535],"r":[[1039,561,1035,561,1033,556,1033,540,1032,538,1032,535,1030,532,1028,530,1029,526,1031,526,1032,522,1035,522,1036,520,1038,518,1040,518,1045,522,1044,524,1046,528,1044,531,1045,533,1042,538,1041,540,1039,544,1040,549,1039,561]]},{"n":"Niger","p":27,"c":[1074,494],"r":[[1108,441,1110,452,1112,454,1112,456,1114,459,1113,462,1111,476,1111,486,1103,493,1101,502,1103,505,1103,509,1107,510,1106,513,1105,513,1105,516,1104,516,1100,508,1098,508,1094,512,1090,510,1087,509,1085,510,1082,510,1078,513,1075,513,1068,510,1066,511,1063,511,1061,508,1055,506,1049,507,1047,508,1047,512,1045,515,1045,522,1040,518,1038,518,1036,520,1036,515,1030,513,1030,510,1026,505,1026,502,1026,498,1030,498,1032,495,1040,495,1045,493,1045,489,1048,484,1048,468,1056,464,1073,450,1092,436,1101,440,1104,444,1108,441]]},{"n":"Nigeria","p":224,"c":[1072,536],"r":[[1039,561,1040,549,1039,544,1041,540,1042,538,1045,533,1044,531,1046,528,1044,524,1045,522,1045,515,1047,512,1047,508,1049,507,1055,506,1061,508,1063,511,1066,511,1068,510,1075,513,1078,513,1082,510,1085,510,1087,509,1090,510,1094,512,1098,508,1100,508,1104,516,1105,516,1107,519,1106,520,1106,522,1101,528,1100,532,1099,536,1098,538,1097,543,1094,546,1093,549,1091,552,1091,555,1087,558,1084,555,1082,555,1078,559,1077,559,1074,566,1072,571,1066,574,1064,574,1062,575,1058,575,1055,570,1053,565,1049,561,1044,561,1039,561]]},{"n":"Cameroon","p":28,"c":[1099,555],"r":[[1106,513,1109,518,1109,522,1109,527,1112,534,1109,534,1107,534,1105,533,1103,537,1107,541,1109,542,1110,545,1112,550,1111,552,1108,560,1107,561,1106,566,1107,569,1106,572,1109,575,1110,578,1112,582,1114,584,1114,587,1115,589,1115,593,1110,592,1106,590,1098,589,1094,590,1091,589,1088,589,1079,589,1080,584,1078,579,1075,578,1074,574,1072,573,1072,571,1074,566,1077,559,1078,559,1082,555,1084,555,1087,558,1091,555,1091,552,1093,549,1094,546,1097,543,1098,538,1099,536,1100,532,1101,528,1106,522,1106,520,1107,519,1105,516,1105,513,1106,513]]},{"n":"Togo","p":9,"c":[1029,541],"r":[[1029,526,1028,530,1030,532,1032,535,1032,538,1033,540,1033,556,1035,561,1030,563,1029,560,1027,556,1027,552,1028,546,1027,543,1026,537,1026,532,1024,529,1024,526,1029,526]]},{"n":"Ghana","p":34,"c":[1019,546],"r":[[1024,526,1024,529,1026,532,1026,537,1027,543,1028,546,1027,552,1027,556,1029,560,1030,563,1021,567,1018,570,1013,572,1008,570,1008,567,1006,561,1007,553,1009,546,1008,536,1007,531,1007,527,1017,526,1020,527,1022,526,1024,526]]},{"n":"Côte d'Ivoire","p":29,"c":[988,548],"r":[[978,532,979,531,981,533,985,533,986,531,987,531,989,530,990,533,991,532,993,531,996,533,997,535,999,536,1001,535,1004,534,1008,536,1009,546,1007,553,1006,561,1008,567,1008,570,1005,570,1001,568,998,568,991,570,987,572,981,574,980,574,981,568,981,567,981,565,979,562,977,561,975,559,976,556,976,552,976,550,977,550,977,547,977,546,977,545,979,544,978,538,977,535,977,533,978,532]]},{"n":"Guinea","p":14,"c":[962,531],"r":[[946,515,949,515,953,517,954,517,955,516,958,516,959,519,960,519,961,518,962,518,964,520,966,520,968,519,970,518,971,517,972,517,973,519,974,521,976,524,975,525,975,528,976,527,977,528,977,530,978,532,977,533,977,535,978,538,979,544,977,545,977,546,977,547,977,550,976,550,974,550,973,553,972,553,970,551,971,549,969,544,967,545,966,545,964,546,964,543,963,541,964,539,962,536,961,533,956,533,955,535,953,535,952,536,952,538,949,542,946,537,944,534,942,534,941,532,940,529,940,527,938,526,940,523,942,523,944,522,945,522,946,521,945,518,946,517,946,515]]},{"n":"Guinea-Bissau","p":2.1,"c":[937,519],"r":[[929,516,932,515,934,515,936,515,946,515,946,517,945,518,946,521,945,522,944,522,942,523,940,523,938,526,935,523,932,523,931,521,931,520,929,518,929,516]]},{"n":"Liberia","p":5.4,"c":[972,557],"r":[[976,550,976,552,976,556,975,559,977,561,979,562,981,565,981,567,981,568,980,574,979,574,973,571,968,565,963,561,959,557,960,555,961,552,963,548,966,545,967,545,969,544,971,549,970,551,972,553,973,553,974,550,976,550]]},{"n":"Sierra Leone","p":8.6,"c":[957,544],"r":[[949,542,952,538,952,536,953,535,955,535,956,533,961,533,962,536,964,539,963,541,964,543,964,546,966,545,963,548,961,552,960,555,959,557,957,556,953,553,950,550,949,547,949,542]]},{"n":"Burkina Faso","p":23,"c":[1013,518],"r":[[993,531,993,527,994,524,994,521,999,515,1000,510,1001,509,1004,510,1006,508,1007,506,1012,503,1013,501,1018,498,1021,497,1022,498,1026,498,1026,502,1026,505,1030,510,1030,513,1036,515,1036,520,1035,522,1032,522,1031,526,1029,526,1024,526,1022,526,1020,527,1017,526,1007,527,1007,531,1008,536,1004,534,1001,535,999,536,997,535,996,533,993,531]]},{"n":"Central African Rep.","p":5.7,"c":[1142,560],"r":[[1180,568,1178,569,1174,569,1170,568,1168,568,1167,570,1165,570,1163,569,1157,573,1154,572,1153,572,1151,577,1147,575,1143,575,1139,572,1135,569,1132,572,1129,575,1129,580,1125,580,1121,579,1118,583,1115,589,1114,587,1114,584,1112,582,1110,578,1109,575,1106,572,1107,569,1106,566,1107,561,1108,560,1111,552,1116,552,1117,550,1118,550,1119,552,1126,549,1129,546,1132,544,1131,541,1133,540,1138,541,1143,537,1148,530,1150,527,1154,525,1155,528,1158,533,1158,536,1157,539,1157,541,1159,543,1164,546,1167,549,1167,552,1171,555,1173,559,1175,563,1179,566,1180,568]]},{"n":"Congo","p":6,"c":[1109,612],"r":[[1129,580,1129,585,1127,589,1126,593,1125,600,1125,604,1124,606,1124,609,1124,611,1120,615,1117,618,1115,625,1115,631,1114,634,1110,637,1107,642,1105,640,1104,638,1101,638,1099,641,1098,640,1096,638,1094,639,1092,642,1087,634,1091,630,1089,626,1091,624,1095,623,1096,620,1099,623,1104,624,1105,620,1106,615,1105,610,1103,605,1105,597,1104,596,1100,596,1098,593,1098,589,1106,590,1110,592,1115,593,1115,589,1118,583,1121,579,1125,580,1129,580]]},{"n":"Gabon","p":2.4,"c":[1091,609],"r":[[1088,589,1091,589,1094,590,1098,589,1098,593,1100,596,1104,596,1105,597,1103,605,1105,610,1106,615,1105,620,1104,624,1099,623,1096,620,1095,623,1091,624,1089,626,1091,630,1087,634,1081,627,1078,621,1074,614,1074,611,1075,609,1077,604,1078,598,1080,598,1088,598,1088,589]]},{"n":"Eq. Guinea","p":1.7,"c":[1081,594],"r":[[1079,589,1088,589,1088,598,1080,598,1078,598,1077,597,1079,589]]},{"n":"Zambia","p":20,"c":[1183,698],"r":[[1199,666,1201,668,1204,669,1207,670,1210,672,1213,676,1214,682,1214,684,1212,689,1213,695,1212,698,1210,705,1213,706,1196,712,1196,718,1192,719,1189,721,1188,724,1186,725,1181,730,1178,735,1176,735,1174,734,1168,734,1167,733,1164,731,1161,730,1156,732,1152,728,1149,722,1149,699,1161,699,1160,696,1161,694,1160,690,1161,687,1160,685,1162,685,1162,687,1165,687,1169,687,1171,691,1175,692,1179,689,1180,693,1184,694,1186,697,1189,701,1193,701,1192,694,1191,695,1187,692,1185,691,1186,684,1187,675,1186,672,1187,667,1189,666,1197,665,1199,666]]},{"n":"Malawi","p":21,"c":[1218,699],"r":[[1210,672,1216,674,1217,676,1219,679,1221,689,1219,694,1221,704,1223,704,1225,706,1227,711,1228,720,1225,722,1223,727,1220,722,1219,717,1220,714,1220,711,1218,709,1216,710,1213,706,1210,705,1212,698,1213,695,1212,689,1214,684,1214,682,1213,676,1210,672]]},{"n":"Mozambique","p":33,"c":[1222,735],"r":[[1221,689,1225,688,1232,690,1233,689,1237,689,1239,687,1243,687,1249,684,1253,680,1254,683,1254,691,1255,697,1255,708,1256,712,1254,717,1252,722,1248,726,1243,729,1237,733,1230,740,1228,742,1224,747,1222,748,1221,754,1224,759,1225,763,1225,765,1226,765,1226,772,1225,775,1227,777,1226,780,1223,782,1219,785,1212,789,1209,791,1210,794,1211,795,1211,799,1206,799,1206,795,1205,792,1205,790,1206,781,1204,776,1201,766,1207,758,1209,753,1210,752,1210,748,1210,746,1210,740,1211,735,1211,726,1208,724,1205,723,1204,722,1201,720,1197,720,1196,718,1196,712,1213,706,1216,710,1218,709,1220,711,1220,714,1219,717,1220,722,1223,727,1225,722,1228,720,1227,711,1225,706,1223,704,1221,704,1219,694,1221,689]]},{"n":"eSwatini","p":1.2,"c":[1203,796],"r":[[1206,799,1205,802,1202,803,1199,799,1199,796,1200,793,1201,791,1202,791,1205,792,1206,795,1206,799]]},{"n":"Angola","p":36,"c":[1123,685],"r":[[1098,640,1096,642,1095,644,1095,647,1093,647,1092,642,1094,639,1096,638,1098,640],[1094,650,1096,649,1098,649,1100,648,1117,648,1118,654,1120,658,1121,660,1123,664,1127,663,1129,662,1132,663,1133,662,1134,657,1138,657,1138,656,1141,656,1141,658,1148,658,1148,663,1149,666,1148,670,1148,674,1150,677,1150,686,1151,685,1154,685,1157,684,1160,685,1161,687,1160,690,1161,694,1160,696,1161,699,1149,699,1149,722,1152,728,1156,732,1146,735,1132,734,1128,731,1105,731,1104,731,1101,728,1097,728,1093,729,1091,731,1090,726,1091,720,1093,713,1093,710,1095,703,1096,700,1100,696,1102,693,1102,687,1102,683,1100,681,1099,676,1097,672,1098,670,1099,667,1098,661,1096,656,1094,651,1094,650]]},{"n":"Burundi","p":13,"c":[1195,629],"r":[[1197,623,1198,626,1199,628,1199,630,1198,631,1195,635,1193,638,1191,638,1191,629,1189,626,1193,627,1194,623,1197,623]]},{"n":"Israel","p":9.7,"c":[1224,375],"r":[[1227,370,1226,372,1224,371,1223,376,1224,377,1223,378,1223,380,1225,379,1226,381,1223,393,1222,391,1219,381,1221,378,1220,378,1222,374,1223,369,1224,367,1226,367,1226,366,1228,366,1228,369,1227,370]]},{"n":"Lebanon","p":5.5,"c":[1228,363],"r":[[1228,366,1226,366,1226,367,1224,367,1226,361,1229,356,1231,356,1232,359,1229,362,1228,366]]},{"n":"Madagascar","p":30,"c":[1291,735],"r":[[1306,696,1307,699,1309,703,1310,712,1311,716,1311,719,1310,721,1308,717,1307,719,1308,724,1307,727,1306,729,1305,735,1303,744,1300,754,1297,767,1294,777,1292,786,1287,787,1282,790,1279,789,1275,786,1273,782,1273,776,1271,770,1270,765,1271,760,1274,758,1274,756,1276,750,1277,746,1276,742,1275,738,1274,731,1276,727,1277,723,1280,722,1283,721,1285,720,1287,720,1291,715,1295,711,1297,707,1296,704,1299,705,1302,700,1302,696,1304,693,1306,696]]},{"n":"Palestine","p":5.3,"c":[1224,377],"r":[[1225,379,1223,380,1223,378,1224,377,1223,376,1224,371,1226,372,1226,377,1225,379]]},{"n":"Gambia","p":2.7,"c":[937,508],"r":[[929,508,935,508,936,506,938,506,940,507,942,507,944,506,945,508,943,510,940,510,938,508,936,510,935,510,933,511,928,511,929,508]]},{"n":"Tunisia","p":12,"c":[1080,360],"r":[[1078,387,1076,374,1072,371,1072,370,1067,365,1067,360,1070,356,1072,350,1071,343,1072,339,1078,336,1082,337,1082,341,1087,338,1087,340,1084,343,1084,347,1086,348,1085,355,1082,358,1083,362,1086,362,1087,366,1089,367,1089,372,1086,374,1085,377,1081,379,1081,382,1081,386,1078,387]]},{"n":"Algeria","p":45,"c":[1041,392],"r":[[975,408,975,407,975,406,975,398,984,392,990,391,994,389,996,386,1003,383,1003,378,1007,377,1009,374,1017,373,1018,370,1016,369,1014,361,1014,357,1012,352,1017,348,1023,347,1027,344,1032,342,1042,340,1051,340,1054,341,1060,338,1066,338,1068,340,1072,339,1071,343,1072,350,1070,356,1067,360,1067,365,1072,370,1072,371,1076,374,1078,387,1080,394,1080,397,1079,403,1080,406,1079,410,1079,415,1077,418,1080,423,1081,426,1083,430,1085,429,1090,432,1092,436,1073,450,1056,464,1048,468,1042,468,1042,464,1039,463,1036,460,1034,457,1015,441,996,426,975,408]]},{"n":"Jordan","p":11,"c":[1233,381],"r":[[1226,372,1227,370,1234,373,1245,365,1247,374,1246,375,1235,379,1240,386,1238,387,1237,389,1233,390,1232,393,1229,395,1223,394,1223,393,1226,381,1225,379,1226,377,1226,372]]},{"n":"United Arab Emirates","p":9.5,"c":[1333,431],"r":[[1317,431,1318,431,1319,433,1323,431,1328,432,1331,432,1335,427,1339,422,1343,418,1344,420,1345,426,1342,426,1341,431,1342,432,1340,433,1340,436,1338,439,1338,442,1337,444,1320,440,1318,433,1317,431]]},{"n":"Qatar","p":2.7,"c":[1315,424],"r":[[1313,427,1313,422,1314,418,1316,417,1317,420,1318,424,1316,428,1315,429,1313,427]]},{"n":"Kuwait","p":4.3,"c":[1296,394],"r":[[1297,390,1298,393,1298,394,1299,400,1295,400,1294,397,1289,396,1293,389,1297,390]]},{"n":"Iraq","p":45,"c":[1277,365],"r":[[1247,374,1245,365,1257,358,1259,349,1259,344,1262,342,1265,337,1267,336,1274,337,1276,339,1279,338,1282,346,1286,348,1287,353,1284,355,1282,361,1286,368,1293,372,1296,377,1295,382,1297,382,1297,386,1300,390,1297,390,1293,389,1289,396,1278,395,1262,381,1254,376,1247,374]]},{"n":"Oman","p":4.6,"c":[1346,455],"r":[[1338,442,1338,439,1340,436,1340,433,1342,432,1341,431,1342,426,1345,426,1347,431,1351,434,1355,434,1358,436,1361,440,1362,442,1364,443,1364,445,1362,449,1361,451,1359,453,1357,458,1354,458,1353,460,1352,463,1353,468,1352,469,1350,469,1346,472,1345,475,1344,477,1341,477,1338,479,1338,482,1336,484,1333,483,1329,485,1326,486,1324,481,1320,469,1337,462,1341,447,1338,442],[1344,420,1343,418,1345,415,1345,416,1345,419,1344,420]]},{"n":"Vanuatu","p":0.3,"c":[1974,717],"r":[[1975,720,1979,724,1977,725,1975,722,1975,720],[1973,719,1972,717,1972,711,1975,713,1976,719,1974,718,1973,719]]},{"n":"Cambodia","p":17,"c":[1621,515],"r":[[1608,518,1606,509,1610,503,1617,502,1623,503,1627,506,1630,501,1635,503,1636,508,1636,517,1626,522,1628,527,1622,527,1618,530,1613,529,1610,525,1608,518]]},{"n":"Thailand","p":72,"c":[1597,511],"r":[[1623,503,1617,502,1610,503,1606,509,1608,518,1602,515,1598,515,1598,509,1593,509,1593,517,1590,528,1588,534,1588,539,1592,539,1594,546,1596,552,1599,556,1602,557,1605,561,1603,564,1599,565,1599,561,1594,558,1593,559,1591,556,1590,553,1587,549,1584,545,1583,550,1582,546,1583,541,1585,534,1587,527,1591,520,1588,513,1588,510,1588,506,1584,500,1583,497,1585,495,1587,489,1584,484,1581,479,1578,473,1580,471,1583,464,1587,463,1590,460,1594,459,1596,461,1596,465,1600,465,1599,473,1599,479,1605,475,1607,476,1610,476,1611,474,1615,474,1620,480,1620,487,1625,493,1624,500,1623,503]]},{"n":"Laos","p":7.6,"c":[1614,474],"r":[[1635,503,1630,501,1627,506,1623,503,1624,500,1625,493,1620,487,1620,480,1615,474,1611,474,1610,476,1607,476,1605,475,1599,479,1599,473,1600,465,1596,465,1596,461,1594,459,1595,456,1600,451,1600,453,1603,453,1602,445,1605,444,1609,449,1611,456,1618,456,1620,462,1617,464,1615,467,1622,471,1627,480,1630,486,1634,491,1636,496,1635,503]]},{"n":"Myanmar","p":54,"c":[1577,461],"r":[[1594,459,1590,460,1587,463,1583,464,1580,471,1578,473,1581,479,1584,484,1587,489,1585,495,1583,497,1584,500,1588,506,1588,510,1588,513,1591,520,1587,527,1585,534,1584,529,1586,523,1584,519,1584,511,1582,507,1580,499,1579,490,1577,484,1573,487,1567,492,1563,492,1560,490,1562,481,1561,474,1556,466,1557,463,1554,463,1549,457,1549,451,1551,452,1551,447,1554,445,1553,442,1555,440,1555,432,1559,434,1562,428,1562,424,1565,418,1565,414,1573,409,1577,410,1576,406,1578,405,1578,402,1581,401,1583,406,1585,407,1586,413,1585,419,1580,425,1579,433,1585,432,1587,439,1590,440,1589,446,1593,449,1595,450,1599,448,1600,451,1595,456,1594,459]]},{"n":"Vietnam","p":99,"c":[1627,485],"r":[[1618,530,1622,527,1628,527,1626,522,1636,517,1636,508,1635,503,1636,496,1634,491,1630,486,1627,480,1622,471,1615,467,1617,464,1620,462,1618,456,1611,456,1609,449,1605,444,1608,442,1613,442,1618,441,1623,437,1626,440,1631,441,1630,446,1633,448,1639,450,1631,456,1626,463,1625,468,1629,476,1635,485,1640,490,1643,496,1646,509,1645,522,1640,526,1634,531,1629,537,1622,544,1620,539,1622,534,1618,530]]},{"n":"North Korea","p":26,"c":[1748,318],"r":[[1767,300,1768,301,1766,301,1763,303,1762,306,1762,311,1759,313,1758,314,1756,316,1752,317,1750,319,1749,322,1749,323,1751,324,1754,327,1753,329,1751,330,1747,330,1745,333,1742,333,1742,334,1739,332,1738,334,1737,334,1736,333,1735,332,1733,331,1735,328,1736,327,1736,326,1737,322,1737,321,1734,320,1731,318,1736,313,1742,309,1746,304,1748,306,1753,307,1752,303,1761,300,1764,296,1767,300]]},{"n":"South Korea","p":52,"c":[1749,341],"r":[[1742,334,1742,333,1745,333,1747,330,1751,330,1753,329,1754,327,1759,336,1760,340,1761,349,1758,353,1753,354,1749,357,1744,358,1743,354,1744,348,1741,341,1746,340,1742,334]]},{"n":"Mongolia","p":3.4,"c":[1619,265],"r":[[1523,250,1529,249,1540,243,1549,239,1554,242,1560,242,1563,245,1569,245,1577,247,1583,242,1581,238,1586,230,1593,233,1598,234,1605,236,1606,242,1614,245,1619,243,1626,242,1632,243,1638,247,1641,250,1646,250,1654,251,1659,250,1666,248,1675,243,1678,244,1681,247,1688,246,1685,251,1681,259,1682,262,1686,261,1691,262,1696,259,1700,261,1705,266,1705,269,1700,268,1692,269,1688,271,1684,276,1675,279,1669,283,1664,281,1660,281,1657,285,1659,288,1660,290,1656,293,1652,297,1645,299,1637,299,1628,302,1621,306,1619,304,1612,304,1603,299,1598,298,1590,299,1578,297,1572,298,1569,293,1566,287,1563,286,1556,281,1548,280,1541,279,1539,276,1542,268,1538,262,1529,259,1525,255,1523,250]]},{"n":"India","p":1428,"c":[1500,433],"r":[[1578,402,1578,405,1576,406,1577,410,1573,409,1565,414,1565,418,1562,424,1562,428,1559,434,1555,432,1555,440,1553,442,1554,445,1551,447,1548,435,1547,435,1546,440,1543,436,1544,432,1547,432,1550,426,1546,424,1541,425,1536,424,1535,419,1532,418,1528,415,1526,420,1530,424,1526,426,1525,429,1529,431,1528,435,1530,441,1530,447,1530,449,1526,449,1519,451,1519,456,1516,460,1508,465,1502,474,1497,478,1492,483,1492,486,1489,488,1484,491,1481,491,1479,497,1480,506,1481,512,1478,519,1478,531,1475,531,1473,537,1474,539,1469,541,1467,546,1465,548,1460,542,1457,531,1455,524,1453,521,1450,514,1448,505,1447,500,1442,490,1440,476,1438,467,1438,458,1437,452,1429,456,1425,455,1417,446,1420,444,1419,441,1412,435,1416,430,1428,430,1427,424,1424,420,1423,415,1419,411,1426,404,1432,404,1438,397,1442,390,1447,382,1447,377,1452,373,1448,369,1446,365,1444,358,1446,355,1455,357,1461,356,1467,350,1473,358,1472,364,1475,368,1474,371,1470,371,1472,378,1478,383,1485,388,1482,391,1480,398,1485,401,1490,404,1498,408,1506,409,1509,413,1513,414,1520,415,1525,415,1526,412,1525,408,1525,405,1529,403,1529,409,1529,410,1535,413,1538,412,1543,412,1548,412,1548,408,1546,405,1550,405,1555,399,1562,395,1567,396,1571,393,1573,398,1572,401,1578,402]]},{"n":"Bangladesh","p":173,"c":[1540,437],"r":[[1551,447,1551,452,1549,451,1549,457,1548,453,1548,449,1546,446,1544,442,1539,441,1539,444,1538,448,1535,447,1534,448,1533,447,1530,447,1530,441,1528,435,1529,431,1525,429,1526,426,1530,424,1526,420,1528,415,1532,418,1535,419,1536,424,1541,425,1546,424,1550,426,1547,432,1544,432,1543,436,1546,440,1547,435,1548,435,1551,447]]},{"n":"Bhutan","p":0.8,"c":[1540,408],"r":[[1546,405,1548,408,1548,412,1543,412,1538,412,1535,413,1529,410,1529,409,1533,404,1536,402,1540,403,1543,404,1546,405]]},{"n":"Nepal","p":31,"c":[1505,402],"r":[[1525,405,1525,408,1526,412,1525,415,1520,415,1513,414,1509,413,1506,409,1498,408,1490,404,1485,401,1480,398,1482,391,1485,388,1488,386,1492,389,1498,393,1501,394,1503,398,1508,399,1512,402,1519,404,1525,405]]},{"n":"Pakistan","p":240,"c":[1419,384],"r":[[1467,350,1461,356,1455,357,1446,355,1444,358,1446,365,1448,369,1452,373,1447,377,1447,382,1442,390,1438,397,1432,404,1426,404,1419,411,1423,415,1424,420,1427,424,1428,430,1416,430,1412,435,1408,433,1406,428,1402,422,1391,424,1382,424,1374,425,1376,417,1384,413,1384,409,1381,408,1381,402,1375,399,1373,394,1370,391,1380,394,1386,393,1389,394,1390,393,1394,393,1401,390,1402,384,1405,380,1409,380,1410,378,1414,377,1416,378,1418,376,1418,371,1420,367,1424,365,1422,360,1427,361,1429,358,1429,355,1431,352,1431,349,1429,346,1433,342,1439,341,1445,340,1448,339,1452,338,1456,341,1457,347,1467,350]]},{"n":"Afghanistan","p":42,"c":[1410,355],"r":[[1402,336,1406,336,1410,338,1412,339,1416,336,1418,338,1419,335,1423,335,1424,334,1424,331,1427,328,1430,330,1429,332,1431,332,1430,338,1433,341,1435,339,1437,339,1441,335,1445,336,1451,336,1452,338,1448,339,1445,340,1439,341,1433,342,1429,346,1431,349,1431,352,1429,355,1429,358,1427,361,1422,360,1424,365,1420,367,1418,371,1418,376,1416,378,1414,377,1410,378,1409,380,1405,380,1402,384,1401,390,1394,393,1390,393,1389,394,1386,393,1380,394,1370,391,1375,384,1375,379,1371,378,1370,374,1368,368,1371,364,1368,363,1370,358,1372,349,1378,351,1382,350,1383,347,1388,346,1391,344,1392,338,1397,337,1398,334,1401,336,1402,336]]},{"n":"Tajikistan","p":10,"c":[1427,328],"r":[[1410,338,1413,331,1412,325,1408,324,1409,320,1414,321,1417,317,1418,312,1426,310,1425,314,1426,316,1428,316,1426,318,1420,317,1419,321,1425,320,1432,322,1443,321,1445,328,1446,327,1450,329,1450,332,1451,336,1445,336,1441,335,1437,339,1435,339,1433,341,1430,338,1431,332,1429,332,1430,330,1427,328,1424,331,1424,334,1423,335,1419,335,1418,338,1416,336,1412,339,1410,338]]},{"n":"Kyrgyzstan","p":6.7,"c":[1445,308],"r":[[1428,301,1429,298,1433,297,1442,299,1443,295,1446,294,1454,297,1456,296,1466,296,1474,297,1477,299,1481,300,1480,302,1471,306,1469,309,1462,310,1459,314,1453,313,1449,315,1444,318,1445,320,1443,321,1432,322,1425,320,1419,321,1420,317,1426,318,1428,316,1432,316,1440,311,1433,307,1429,309,1425,306,1429,302,1428,301]]},{"n":"Turkmenistan","p":6.5,"c":[1357,322],"r":[[1323,304,1325,302,1332,301,1335,303,1339,308,1342,308,1349,308,1348,304,1353,302,1358,297,1365,301,1366,307,1368,308,1374,308,1376,309,1379,317,1385,322,1389,325,1395,329,1403,332,1402,336,1401,336,1398,334,1397,337,1392,338,1391,344,1388,346,1383,347,1382,350,1378,351,1372,349,1372,343,1367,342,1361,336,1356,335,1350,332,1346,331,1344,332,1340,332,1336,336,1331,337,1330,332,1331,325,1326,322,1328,317,1324,317,1325,311,1330,313,1335,310,1331,306,1330,302,1325,304,1324,309,1323,304]]},{"n":"Iran","p":89,"c":[1327,366],"r":[[1300,390,1297,386,1297,382,1295,382,1296,377,1293,372,1286,368,1282,361,1284,355,1287,353,1286,348,1282,346,1279,338,1276,332,1277,330,1275,321,1279,319,1280,322,1283,325,1287,326,1289,326,1295,321,1297,320,1299,322,1297,326,1301,330,1302,329,1304,335,1309,336,1313,340,1321,341,1330,339,1331,337,1336,336,1340,332,1344,332,1346,331,1350,332,1356,335,1361,336,1367,342,1372,343,1372,349,1370,358,1368,363,1371,364,1368,368,1370,374,1371,378,1375,379,1375,384,1370,391,1373,394,1375,399,1381,402,1381,408,1384,409,1384,413,1376,417,1374,425,1363,423,1357,421,1351,420,1348,411,1345,410,1341,411,1335,415,1328,412,1323,407,1317,405,1313,398,1309,388,1306,390,1302,387,1300,390]]},{"n":"Syria","p":23,"c":[1240,352],"r":[[1227,370,1228,369,1228,366,1229,362,1232,359,1231,356,1229,356,1228,350,1230,347,1231,346,1233,344,1233,340,1235,342,1241,340,1244,341,1249,341,1255,338,1258,338,1265,337,1262,342,1259,344,1259,349,1257,358,1245,365,1234,373,1227,370]]},{"n":"Armenia","p":2.8,"c":[1282,318],"r":[[1289,326,1287,326,1284,322,1284,321,1282,321,1280,319,1279,319,1277,317,1272,315,1273,312,1272,309,1280,308,1281,310,1283,311,1282,313,1285,316,1283,318,1286,320,1288,321,1289,326]]},{"n":"Sweden","p":10.5,"c":[1118,153],"r":[[1087,181,1089,177,1094,172,1096,164,1092,160,1092,151,1096,144,1101,144,1103,141,1101,139,1110,128,1116,120,1119,115,1125,115,1126,111,1137,112,1138,108,1141,107,1149,111,1158,116,1158,127,1160,130,1150,132,1145,137,1146,141,1137,147,1126,153,1121,163,1125,168,1131,172,1126,181,1120,182,1118,194,1114,201,1107,200,1104,206,1098,207,1096,200,1091,192,1087,181]]},{"n":"Belarus","p":9.2,"c":[1185,221],"r":[[1184,201,1190,203,1191,204,1194,203,1200,205,1200,209,1199,210,1203,215,1205,217,1205,218,1208,219,1210,221,1208,223,1203,222,1202,223,1203,225,1205,230,1200,230,1198,232,1198,236,1196,235,1190,235,1189,234,1187,235,1185,234,1180,234,1174,232,1168,231,1164,232,1161,234,1158,234,1158,231,1156,227,1159,226,1159,223,1158,220,1158,217,1163,217,1169,214,1171,210,1175,208,1175,205,1178,203,1184,201]]},{"n":"Ukraine","p":37,"c":[1197,255],"r":[[1205,230,1207,230,1208,229,1210,229,1216,228,1220,232,1218,234,1219,236,1223,236,1225,240,1225,241,1232,244,1237,242,1240,246,1244,246,1252,248,1252,250,1250,254,1251,258,1250,260,1245,261,1242,263,1241,266,1237,267,1233,269,1228,269,1223,272,1223,276,1222,276,1222,274,1220,274,1216,272,1214,274,1213,273,1205,272,1204,269,1199,270,1197,274,1192,279,1190,278,1187,279,1185,278,1186,277,1187,274,1189,272,1188,271,1189,270,1190,271,1193,272,1195,271,1194,270,1194,269,1192,267,1191,264,1189,263,1190,261,1187,259,1185,258,1181,256,1177,257,1175,258,1173,258,1172,260,1167,260,1165,261,1163,260,1159,260,1156,259,1153,260,1153,259,1150,257,1151,254,1152,252,1154,252,1152,249,1157,243,1160,242,1161,240,1158,234,1161,234,1164,232,1168,231,1174,232,1180,234,1185,234,1187,235,1189,234,1190,235,1196,235,1198,236,1198,232,1200,230,1205,230]]},{"n":"Poland","p":38,"c":[1135,233],"r":[[1158,217,1158,220,1159,223,1159,226,1156,227,1158,231,1158,234,1161,240,1160,242,1157,243,1152,249,1154,252,1152,252,1147,249,1143,250,1140,249,1137,251,1134,248,1132,249,1131,249,1129,245,1124,245,1124,243,1120,242,1119,244,1116,242,1116,240,1112,240,1109,237,1107,233,1108,230,1106,226,1104,224,1106,222,1104,218,1108,216,1117,213,1124,210,1130,211,1130,213,1136,213,1143,214,1153,214,1156,215,1158,217]]},{"n":"Austria","p":9,"c":[1101,262],"r":[[1121,259,1120,262,1117,262,1118,263,1116,268,1115,269,1110,269,1107,271,1103,270,1094,268,1093,266,1088,267,1087,269,1083,268,1080,267,1078,266,1079,264,1079,263,1080,263,1083,265,1084,263,1089,263,1093,262,1096,262,1098,263,1098,262,1097,258,1099,257,1101,253,1106,256,1109,253,1111,252,1115,254,1118,254,1120,255,1120,256,1121,259]]},{"n":"Hungary","p":9.6,"c":[1133,264],"r":[[1150,257,1153,259,1153,260,1150,262,1147,267,1144,272,1139,273,1135,273,1131,275,1129,276,1124,274,1120,271,1118,270,1117,268,1116,268,1118,263,1117,262,1120,262,1121,259,1123,261,1126,261,1130,260,1131,259,1133,259,1136,258,1139,257,1140,256,1142,255,1148,257,1150,257]]},{"n":"Moldova","p":2.5,"c":[1186,266],"r":[[1175,258,1177,257,1181,256,1185,258,1187,259,1190,261,1189,263,1191,264,1192,267,1194,269,1194,270,1195,271,1193,272,1190,271,1189,270,1188,271,1189,272,1187,274,1186,277,1185,278,1184,274,1184,271,1184,268,1181,264,1179,261,1177,259,1175,258]]},{"n":"Romania","p":19,"c":[1167,275],"r":[[1185,278,1187,279,1190,278,1192,279,1193,281,1190,283,1188,282,1186,291,1183,290,1179,287,1172,289,1169,291,1161,290,1157,289,1155,290,1153,287,1152,285,1153,284,1152,283,1150,285,1147,283,1146,280,1143,278,1142,276,1139,273,1144,272,1147,267,1150,262,1153,260,1156,259,1159,260,1163,260,1165,261,1167,260,1172,260,1173,258,1175,258,1177,259,1179,261,1181,264,1184,268,1184,271,1184,274,1185,278]]},{"n":"Lithuania","p":2.8,"c":[1161,208],"r":[[1175,205,1175,208,1171,210,1169,214,1163,217,1158,217,1156,215,1153,214,1153,212,1153,210,1151,209,1145,208,1144,202,1150,199,1160,200,1165,199,1166,201,1169,201,1175,205]]},{"n":"Latvia","p":1.9,"c":[1166,196],"r":[[1179,191,1182,193,1182,196,1184,201,1178,203,1175,205,1169,201,1166,201,1165,199,1160,200,1150,199,1144,202,1144,196,1147,192,1152,189,1157,195,1161,195,1162,189,1167,188,1170,189,1175,191,1179,191]]},{"n":"Estonia","p":1.3,"c":[1171,183],"r":[[1183,177,1184,178,1180,182,1182,189,1179,191,1175,191,1170,189,1167,188,1162,189,1163,185,1161,186,1157,183,1157,179,1164,177,1171,176,1177,177,1183,177]]},{"n":"Germany","p":84,"c":[1085,238],"r":[[1104,218,1106,222,1104,224,1106,226,1108,230,1107,233,1109,237,1107,238,1105,237,1104,239,1100,240,1098,242,1094,243,1095,245,1095,248,1098,250,1101,253,1099,257,1097,258,1098,262,1098,263,1096,262,1093,262,1089,263,1084,263,1083,265,1080,263,1079,263,1072,261,1071,262,1066,262,1067,257,1070,252,1062,251,1059,249,1060,246,1058,244,1059,239,1058,232,1061,232,1063,229,1064,223,1063,220,1064,219,1069,218,1070,220,1074,216,1073,213,1073,209,1077,210,1080,209,1081,212,1086,214,1086,216,1092,215,1095,213,1102,216,1104,218]]},{"n":"Bulgaria","p":6.4,"c":[1164,297],"r":[[1153,287,1155,290,1157,289,1161,290,1169,291,1172,289,1179,287,1183,290,1186,291,1184,294,1181,299,1183,303,1178,302,1173,304,1173,308,1167,308,1163,306,1159,308,1155,308,1154,303,1151,301,1152,300,1152,299,1153,296,1155,294,1152,291,1151,288,1153,287]]},{"n":"Greece","p":10,"c":[1156,319],"r":[[1174,351,1173,353,1165,354,1165,353,1158,351,1159,348,1162,351,1166,350,1171,351,1170,352,1174,351],[1155,308,1159,308,1163,306,1167,308,1173,308,1173,304,1175,306,1174,311,1172,311,1169,311,1166,310,1159,312,1163,316,1160,318,1157,318,1154,314,1153,315,1154,320,1157,323,1155,325,1158,328,1161,330,1161,334,1155,332,1157,336,1154,337,1156,343,1152,343,1147,340,1145,334,1144,329,1142,326,1139,322,1139,320,1141,316,1142,314,1143,313,1144,311,1147,311,1149,309,1153,309,1153,308,1155,308]]},{"n":"Turkey","p":86,"c":[1233,329],"r":[[1279,338,1276,339,1274,337,1267,336,1265,337,1258,338,1255,338,1249,341,1244,341,1241,340,1235,342,1233,340,1233,344,1231,346,1230,347,1228,344,1230,341,1226,342,1221,340,1218,345,1209,345,1204,341,1198,341,1197,344,1193,345,1187,341,1181,341,1178,334,1174,330,1176,325,1173,321,1179,314,1188,314,1190,309,1201,309,1208,305,1215,303,1224,303,1234,308,1242,310,1249,309,1254,310,1260,306,1266,306,1272,309,1273,312,1272,315,1277,317,1279,319,1275,321,1277,330,1276,332,1279,338],[1173,304,1178,302,1183,303,1184,306,1189,308,1188,310,1181,310,1179,312,1174,316,1172,313,1172,311,1174,311,1175,306,1173,304]]},{"n":"Albania","p":2.8,"c":[1139,308],"r":[[1144,311,1143,313,1142,314,1141,316,1139,320,1138,319,1138,318,1134,315,1134,312,1134,307,1135,305,1134,304,1134,301,1136,298,1137,299,1138,299,1139,301,1141,301,1141,304,1140,306,1141,309,1144,311]]},{"n":"Croatia","p":3.9,"c":[1118,282],"r":[[1118,270,1120,271,1124,274,1129,276,1131,275,1132,277,1134,280,1132,282,1130,281,1126,281,1121,280,1118,280,1117,281,1115,280,1114,283,1116,286,1118,288,1120,291,1122,292,1125,295,1130,298,1129,299,1124,297,1120,294,1115,292,1110,287,1111,286,1109,283,1109,281,1105,280,1103,283,1102,280,1102,278,1106,278,1107,277,1109,278,1111,278,1111,276,1113,275,1114,272,1118,270]]},{"n":"Switzerland","p":8.8,"c":[1071,268],"r":[[1079,263,1079,264,1078,266,1080,267,1083,268,1083,271,1080,272,1076,271,1075,274,1072,274,1071,273,1068,275,1065,276,1063,274,1061,271,1058,272,1058,269,1063,265,1062,263,1065,264,1066,262,1071,262,1072,261,1079,263]]},{"n":"Luxembourg","p":0.66,"c":[1058,247],"r":[[1058,244,1060,246,1059,249,1058,249,1056,249,1057,245,1058,244]]},{"n":"Belgium","p":11.7,"c":[1050,241],"r":[[1059,239,1058,244,1057,245,1056,249,1051,245,1048,246,1044,242,1042,240,1039,239,1038,237,1043,235,1047,236,1052,235,1056,238,1059,239]]},{"n":"Netherlands","p":17.8,"c":[1056,230],"r":[[1063,220,1064,223,1063,229,1061,232,1058,232,1059,239,1056,238,1052,235,1047,236,1043,235,1046,233,1051,223,1059,220,1063,220]]},{"n":"Portugal","p":10,"c":[978,319],"r":[[973,304,975,302,977,301,978,304,982,304,983,303,986,304,988,307,985,309,985,315,984,316,984,319,981,320,984,324,982,329,984,331,983,333,981,336,982,338,979,340,976,339,973,340,974,334,974,330,971,329,970,326,970,322,973,319,973,316,974,312,974,309,973,306,973,304]]},{"n":"Spain","p":48,"c":[999,316],"r":[[982,338,981,336,983,333,984,331,982,329,984,324,981,320,984,319,984,316,985,315,985,309,988,307,986,304,983,303,982,304,978,304,977,301,975,302,973,304,973,299,971,295,979,290,986,292,993,292,999,293,1004,292,1013,293,1015,295,1026,299,1028,297,1034,300,1041,299,1041,304,1036,308,1029,310,1028,312,1025,316,1022,322,1025,326,1021,330,1020,334,1016,336,1012,341,1005,341,999,341,996,344,993,347,991,346,989,343,987,339,982,338]]},{"n":"Ireland","p":5.2,"c":[980,220],"r":[[989,217,990,222,985,229,975,233,967,232,972,225,969,217,977,212,981,208,982,212,981,216,984,216,989,217]]},{"n":"New Caledonia","p":0.3,"c":[1966,758],"r":[[1967,758,1972,762,1975,766,1973,767,1969,765,1965,762,1962,758,1958,753,1957,751,1960,751,1963,753,1965,756,1967,758]]},{"n":"Solomon Is.","p":0.7,"c":[1929,663],"r":[[1946,681,1948,684,1944,684,1942,679,1945,681,1946,681],[1944,675,1943,676,1939,670,1938,666,1939,666,1942,672,1944,675],[1939,677,1937,677,1933,676,1932,675,1933,672,1936,674,1938,675,1939,677],[1932,664,1934,666,1934,667,1929,664,1926,662,1924,659,1925,659,1928,660,1932,664],[1918,656,1920,659,1919,659,1917,658,1914,655,1915,653,1918,656]]},{"n":"New Zealand","p":5.2,"c":[2022,881],"r":[[2030,895,2028,899,2025,903,2021,906,2020,904,2018,903,2021,898,2019,894,2013,891,2013,888,2017,886,2018,880,2018,875,2016,870,2016,869,2013,866,2008,860,2006,855,2008,854,2011,858,2016,860,2017,866,2021,874,2022,869,2024,871,2025,877,2030,879,2033,879,2037,877,2040,878,2038,884,2036,888,2032,888,2031,890,2031,893,2030,895],[1989,920,1994,916,1998,912,2000,907,2002,905,2003,901,2007,898,2008,901,2010,904,2014,901,2015,904,2015,907,2013,910,2009,916,2007,919,2009,922,2004,922,1999,925,1998,930,1995,937,1990,940,1987,942,1982,942,1978,940,1972,939,1971,936,1974,931,1981,924,1985,923,1989,920]]},{"n":"Australia","p":26,"c":[1782,777],"r":[[1864,900,1868,901,1868,909,1866,912,1865,917,1863,915,1860,920,1858,920,1855,920,1851,914,1851,909,1847,903,1847,899,1851,900,1857,902,1860,901,1864,900],[1742,838,1736,842,1731,843,1730,847,1727,850,1723,850,1719,851,1714,850,1710,850,1706,851,1703,855,1701,854,1698,856,1695,859,1691,858,1687,858,1681,854,1678,852,1678,848,1681,847,1682,846,1682,843,1683,838,1682,834,1679,826,1678,822,1678,818,1676,814,1676,811,1674,809,1673,803,1670,797,1669,794,1671,797,1669,791,1672,793,1674,795,1674,792,1671,786,1670,784,1669,782,1670,777,1671,776,1672,772,1671,768,1673,763,1674,768,1676,763,1681,761,1684,758,1688,755,1691,754,1692,755,1697,753,1700,752,1701,750,1702,750,1706,750,1712,748,1715,744,1716,741,1719,737,1720,734,1720,730,1724,724,1726,730,1729,729,1727,725,1728,722,1731,723,1732,718,1735,714,1736,712,1739,710,1739,708,1742,709,1742,707,1744,706,1747,705,1751,709,1754,713,1758,713,1761,714,1760,710,1763,704,1765,702,1765,700,1767,696,1771,694,1773,694,1778,693,1778,689,1774,687,1777,686,1781,688,1784,691,1789,693,1790,692,1794,694,1797,692,1799,693,1800,691,1803,695,1802,699,1799,702,1797,702,1798,705,1796,708,1794,712,1795,714,1799,718,1804,720,1807,723,1811,727,1812,727,1815,729,1816,731,1822,733,1825,731,1827,727,1828,724,1828,720,1830,714,1829,711,1830,709,1829,705,1830,699,1831,698,1830,695,1831,691,1832,687,1833,685,1835,683,1836,686,1837,691,1838,692,1838,695,1840,698,1841,702,1841,705,1843,711,1846,708,1848,711,1851,714,1850,717,1852,723,1853,727,1854,728,1855,734,1855,738,1857,742,1863,746,1867,750,1871,753,1870,755,1873,759,1875,767,1878,765,1880,768,1881,767,1882,775,1886,779,1889,782,1894,788,1895,794,1895,798,1895,802,1898,808,1897,815,1896,818,1895,825,1895,829,1894,834,1891,840,1887,844,1885,850,1883,853,1881,859,1879,863,1878,868,1877,873,1877,876,1874,878,1868,878,1862,881,1860,884,1856,887,1852,884,1848,883,1849,879,1846,880,1841,886,1836,884,1833,883,1830,882,1824,880,1820,875,1819,870,1818,866,1815,863,1810,863,1812,859,1810,854,1807,859,1802,860,1805,856,1806,852,1808,848,1808,843,1803,849,1800,852,1798,857,1793,854,1793,851,1790,845,1787,843,1788,841,1781,837,1777,836,1771,833,1761,834,1754,836,1747,839,1742,838]]},{"n":"Sri Lanka","p":22,"c":[1484,551],"r":[[1489,552,1488,559,1486,561,1481,563,1478,557,1477,547,1480,535,1484,539,1487,544,1489,552]]},{"n":"China","p":1425,"c":[1625,337],"r":[[1647,475,1642,472,1642,466,1645,463,1651,461,1654,461,1656,464,1653,467,1652,471,1647,475],[1481,300,1480,296,1484,294,1479,282,1490,279,1493,277,1497,264,1508,267,1512,264,1512,256,1517,256,1521,251,1523,250,1525,255,1529,259,1538,262,1542,268,1539,276,1541,279,1548,280,1556,281,1563,286,1566,287,1569,293,1572,298,1578,297,1590,299,1598,298,1603,299,1612,304,1619,304,1621,306,1628,302,1637,299,1645,299,1652,297,1656,293,1660,290,1659,288,1657,285,1660,281,1664,281,1669,283,1675,279,1684,276,1688,271,1692,269,1700,268,1705,269,1705,266,1700,261,1696,259,1691,262,1686,261,1682,262,1681,259,1685,251,1688,246,1695,249,1703,244,1703,241,1708,233,1711,231,1711,227,1708,225,1712,222,1719,220,1727,220,1735,222,1740,225,1744,232,1746,235,1748,240,1750,247,1760,249,1767,254,1769,261,1778,261,1783,258,1792,256,1789,263,1787,265,1785,273,1781,280,1774,279,1769,281,1771,288,1770,296,1767,296,1767,300,1764,296,1761,300,1752,303,1753,307,1748,306,1746,304,1742,309,1736,313,1731,318,1723,320,1719,323,1713,325,1716,322,1715,319,1719,314,1716,310,1711,313,1705,318,1701,323,1696,323,1693,326,1696,331,1700,332,1700,336,1705,338,1711,333,1716,335,1720,336,1721,339,1713,341,1710,345,1705,349,1702,354,1708,358,1710,365,1714,372,1718,377,1717,383,1714,385,1715,388,1719,391,1718,396,1716,402,1713,403,1709,411,1704,420,1699,429,1691,435,1683,441,1677,442,1673,445,1671,443,1668,447,1660,450,1654,451,1652,459,1649,459,1648,454,1649,451,1641,449,1639,450,1633,448,1630,446,1631,441,1626,440,1623,437,1618,441,1613,442,1608,442,1605,444,1602,445,1603,453,1600,453,1600,451,1599,448,1595,450,1593,449,1589,446,1590,440,1587,439,1585,432,1579,433,1580,425,1585,419,1586,413,1585,407,1583,406,1581,401,1578,402,1572,401,1573,398,1571,393,1567,396,1562,395,1555,399,1550,405,1546,405,1543,404,1540,403,1536,402,1533,404,1529,409,1529,403,1525,405,1519,404,1512,402,1508,399,1503,398,1501,394,1498,393,1492,389,1488,386,1485,388,1478,383,1472,378,1470,371,1474,371,1475,368,1472,364,1473,358,1467,350,1457,347,1456,341,1452,338,1451,336,1450,332,1450,329,1446,327,1445,328,1443,321,1445,320,1444,318,1449,315,1453,313,1459,314,1462,310,1469,309,1471,306,1480,302,1481,300]]},{"n":"Taiwan","p":23,"c":[1713,434],"r":[[1717,430,1713,441,1711,447,1708,441,1707,436,1711,429,1715,423,1718,425,1717,430]]},{"n":"Italy","p":59,"c":[1096,295],"r":[[1083,268,1087,269,1088,267,1093,266,1094,268,1103,270,1102,274,1103,277,1099,276,1094,278,1094,282,1094,284,1096,288,1101,291,1104,297,1110,303,1115,303,1116,305,1114,306,1119,309,1124,311,1129,315,1129,316,1128,319,1125,315,1120,314,1118,319,1122,321,1121,325,1119,326,1116,332,1113,332,1113,330,1114,326,1116,325,1113,321,1112,317,1109,316,1108,313,1104,312,1102,309,1097,308,1093,305,1088,300,1084,296,1082,289,1079,288,1075,286,1072,287,1069,290,1066,291,1067,288,1064,287,1062,281,1064,279,1063,276,1063,274,1065,276,1068,275,1071,273,1072,274,1075,274,1076,271,1080,272,1083,271,1083,268],[1108,331,1112,330,1110,336,1111,338,1110,342,1106,339,1103,338,1095,335,1096,331,1102,331,1108,331],[1074,311,1076,309,1080,314,1079,323,1076,323,1074,325,1072,323,1072,315,1070,310,1074,311]]},{"n":"Denmark","p":5.9,"c":[1079,200],"r":[[1080,209,1077,210,1073,209,1070,205,1070,198,1071,196,1073,194,1078,193,1080,191,1084,189,1084,193,1082,195,1083,198,1086,199,1085,201,1083,201,1079,206,1080,209],[1094,201,1096,205,1093,211,1087,207,1086,203,1094,201]]},{"n":"United Kingdom","p":68,"c":[1007,217],"r":[[989,217,984,216,981,216,982,212,981,208,986,208,992,212,989,217],[1006,221,1007,216,1003,212,996,211,995,209,997,205,995,203,992,207,992,200,989,196,991,189,996,183,1000,184,1007,183,1001,191,1007,190,1013,190,1011,196,1006,202,1012,203,1013,203,1018,212,1022,213,1025,221,1027,224,1034,225,1033,230,1030,232,1032,236,1027,240,1020,240,1010,242,1007,240,1003,244,998,243,994,245,991,244,999,236,1005,235,996,234,994,231,1000,229,997,225,998,220,1006,221]]},{"n":"Iceland","p":0.4,"c":[914,135],"r":[[941,127,940,131,947,136,939,142,923,147,918,148,910,147,895,145,900,141,888,138,898,136,898,134,886,133,889,128,898,127,907,132,916,128,923,130,932,126,941,127]]},{"n":"Azerbaijan","p":10,"c":[1294,315],"r":[[1288,304,1290,304,1294,309,1296,309,1297,307,1300,304,1303,308,1306,313,1309,314,1311,315,1306,316,1305,322,1304,324,1302,326,1302,329,1301,330,1297,326,1299,322,1297,320,1295,321,1289,326,1288,321,1286,320,1283,318,1285,316,1282,313,1283,311,1281,310,1280,308,1281,307,1285,309,1289,310,1289,309,1287,305,1288,304],[1287,326,1283,325,1280,322,1279,319,1280,319,1282,321,1284,321,1284,322,1287,326]]},{"n":"Georgia","p":3.7,"c":[1271,301],"r":[[1251,293,1252,292,1257,293,1265,294,1273,298,1274,299,1277,298,1283,299,1284,302,1288,304,1287,305,1289,309,1289,310,1285,309,1281,307,1280,308,1272,309,1266,306,1260,306,1261,303,1260,298,1257,296,1253,295,1251,293]]},{"n":"Philippines","p":117,"c":[1717,495],"r":[[1711,514,1708,509,1713,509,1715,512,1714,518,1711,514],[1721,534,1723,532,1723,527,1727,527,1726,532,1730,525,1729,532,1727,534,1725,539,1724,541,1720,536,1721,534],[1743,545,1744,550,1744,554,1742,560,1740,553,1737,557,1739,562,1737,566,1731,561,1729,556,1731,553,1727,549,1725,552,1723,552,1719,556,1718,554,1720,548,1723,546,1727,543,1729,546,1733,544,1734,541,1738,541,1737,535,1742,539,1743,542,1743,545],[1698,539,1691,545,1693,540,1697,536,1701,531,1704,524,1705,530,1701,534,1698,539],[1720,474,1719,477,1721,482,1719,488,1716,491,1715,497,1717,502,1720,503,1722,502,1729,506,1729,510,1730,512,1730,515,1725,512,1723,508,1722,511,1718,506,1713,507,1710,506,1711,503,1712,501,1711,499,1710,502,1707,498,1706,495,1706,488,1708,490,1709,479,1711,472,1714,472,1718,474,1719,472,1720,474],[1718,523,1717,520,1721,522,1724,522,1724,525,1722,528,1718,530,1718,527,1718,523],[1738,518,1740,526,1735,524,1735,527,1737,531,1734,533,1734,528,1732,527,1731,523,1734,523,1734,521,1731,515,1736,515,1738,518]]},{"n":"Malaysia","p":34,"c":[1677,579],"r":[[1593,559,1594,558,1599,561,1599,565,1603,564,1605,561,1606,562,1610,566,1612,571,1612,576,1612,579,1612,581,1613,586,1615,588,1617,594,1617,596,1613,597,1608,592,1601,586,1600,582,1597,577,1596,571,1594,567,1595,562,1593,559],[1695,576,1690,575,1683,575,1681,583,1679,585,1676,595,1671,597,1666,595,1663,596,1660,599,1656,599,1653,600,1649,596,1648,591,1652,594,1656,592,1658,586,1660,585,1667,583,1671,578,1674,573,1676,577,1677,574,1680,575,1681,570,1681,566,1685,561,1688,556,1690,556,1693,559,1694,563,1697,565,1702,567,1702,570,1698,570,1699,573,1695,576]]},{"n":"Brunei","p":0.45,"c":[1678,571],"r":[[1681,566,1681,570,1680,575,1677,574,1676,577,1674,573,1676,570,1681,566]]},{"n":"Slovenia","p":2.1,"c":[1109,273],"r":[[1103,270,1107,271,1110,269,1115,269,1116,268,1117,268,1118,270,1114,272,1113,275,1111,276,1111,278,1109,278,1107,277,1106,278,1102,278,1103,277,1102,274,1103,270]]},{"n":"Finland","p":5.6,"c":[1171,134],"r":[[1187,108,1186,113,1195,118,1189,123,1196,131,1192,137,1197,143,1195,147,1203,152,1201,156,1196,160,1184,169,1173,170,1163,173,1154,174,1151,170,1145,168,1147,161,1144,154,1147,150,1152,146,1165,138,1168,136,1168,133,1160,130,1158,127,1158,116,1149,111,1141,107,1145,106,1151,109,1159,109,1165,111,1170,108,1173,102,1182,100,1189,103,1187,108]]},{"n":"Slovakia","p":5.4,"c":[1134,254],"r":[[1152,252,1151,254,1150,257,1148,257,1142,255,1140,256,1139,257,1136,258,1133,259,1131,259,1130,260,1126,261,1123,261,1121,259,1120,256,1120,255,1121,254,1124,254,1126,253,1126,252,1127,252,1127,250,1129,250,1130,249,1131,249,1132,249,1134,248,1137,251,1140,249,1143,250,1147,249,1152,252]]},{"n":"Czechia","p":10.8,"c":[1114,247],"r":[[1109,237,1112,240,1116,240,1116,242,1119,244,1120,242,1124,243,1124,245,1129,245,1131,249,1130,249,1129,250,1127,250,1127,252,1126,252,1126,253,1124,254,1121,254,1120,255,1118,254,1115,254,1111,252,1109,253,1106,256,1101,253,1098,250,1095,248,1095,245,1094,243,1098,242,1100,240,1104,239,1105,237,1107,238,1109,237]]},{"n":"Eritrea","p":3.7,"c":[1249,500],"r":[[1231,502,1231,499,1233,488,1234,483,1235,481,1240,480,1243,476,1246,484,1247,491,1251,494,1258,501,1261,505,1265,510,1266,512,1269,514,1267,516,1265,515,1263,513,1261,509,1258,506,1257,504,1252,501,1248,501,1246,499,1243,501,1240,498,1238,503,1231,502]]},{"n":"Japan","p":123,"c":[1798,348],"r":[[1831,323,1826,330,1826,338,1824,344,1825,347,1822,352,1815,356,1805,356,1797,364,1793,362,1792,356,1783,358,1776,361,1769,361,1775,367,1771,379,1767,382,1765,379,1766,373,1763,371,1760,366,1766,363,1769,359,1774,355,1778,350,1790,348,1796,350,1802,337,1806,340,1814,333,1817,330,1821,321,1820,313,1822,309,1828,307,1831,317,1831,323],[1847,289,1851,286,1852,294,1844,296,1839,303,1830,298,1827,306,1820,306,1819,299,1822,293,1828,293,1830,283,1832,277,1838,285,1843,287,1847,289],[1777,364,1780,360,1783,361,1786,358,1790,359,1791,362,1787,366,1785,364,1782,366,1781,370,1777,368,1777,364]]},{"n":"Paraguay","p":6.8,"c":[696,774],"r":[[693,751,695,755,694,765,700,766,703,765,707,767,708,769,708,776,709,779,711,779,713,778,715,779,715,783,714,787,713,791,712,798,707,803,703,804,696,803,691,801,696,790,695,787,689,784,683,779,678,778,667,766,670,758,670,754,673,747,682,745,688,745,693,749,693,751]]},{"n":"Yemen","p":34,"c":[1288,494],"r":[[1320,469,1324,481,1326,486,1322,488,1321,491,1321,493,1315,496,1306,500,1301,505,1298,505,1297,505,1293,508,1290,509,1285,509,1284,510,1282,512,1281,512,1280,514,1277,514,1275,515,1271,515,1270,510,1270,506,1269,504,1268,499,1266,496,1268,496,1267,492,1268,491,1267,488,1270,486,1269,483,1271,479,1273,481,1275,480,1281,480,1282,481,1288,481,1290,481,1291,484,1294,482,1298,475,1303,471,1320,469]]},{"n":"Saudi Arabia","p":37,"c":[1272,432],"r":[[1223,394,1229,395,1232,393,1233,390,1237,389,1238,387,1240,386,1235,379,1246,375,1247,374,1254,376,1262,381,1278,395,1289,396,1294,397,1295,400,1299,400,1302,406,1304,408,1305,410,1309,413,1310,416,1309,419,1310,421,1311,423,1312,425,1313,427,1315,429,1316,428,1317,431,1318,433,1320,440,1337,444,1338,442,1341,447,1337,462,1320,469,1303,471,1298,475,1294,482,1291,484,1290,481,1288,481,1282,481,1281,480,1275,480,1273,481,1271,479,1269,483,1270,486,1267,488,1267,485,1265,483,1264,480,1262,477,1259,471,1257,465,1253,460,1250,459,1247,452,1246,447,1246,443,1243,435,1240,432,1237,431,1235,426,1236,425,1234,421,1232,420,1230,414,1227,408,1224,403,1221,403,1222,399,1222,397,1223,394]]},{"n":"N. Cyprus","p":0.4,"c":[1214,352],"r":[[1210,352,1211,352,1211,351,1216,351,1221,349,1217,352,1217,353,1216,353,1215,353,1214,353,1214,352,1213,352,1211,353,1210,352]]},{"n":"Cyprus","p":1.3,"c":[1213,353],"r":[[1210,352,1211,353,1213,352,1214,352,1214,353,1215,353,1216,353,1217,353,1217,354,1212,356,1209,356,1208,353,1210,352]]},{"n":"Morocco","p":37,"c":[971,397],"r":[[1012,352,1014,357,1014,361,1016,369,1018,370,1017,373,1009,374,1007,377,1003,378,1003,383,996,386,994,389,990,391,984,392,975,398,975,406,974,406,974,410,970,410,969,412,966,412,964,411,959,412,957,417,956,418,953,427,945,435,943,445,941,448,940,451,927,451,927,448,930,446,931,442,931,440,933,435,936,430,938,429,940,425,940,421,942,416,946,414,949,406,952,404,958,403,962,398,965,396,970,390,968,381,970,375,971,371,975,366,980,363,985,360,988,352,990,348,994,348,998,351,1003,350,1009,352,1012,352]]},{"n":"Egypt","p":113,"c":[1204,403],"r":[[1234,447,1211,447,1189,447,1166,447,1166,421,1166,395,1165,389,1166,385,1165,382,1167,378,1175,378,1180,380,1186,382,1188,383,1193,381,1195,379,1200,378,1204,379,1206,383,1207,380,1212,382,1216,382,1219,381,1222,391,1223,393,1221,396,1220,401,1218,405,1217,406,1215,404,1213,401,1208,390,1208,391,1210,399,1214,406,1218,417,1220,421,1222,425,1227,433,1226,434,1226,439,1233,446,1234,447]]},{"n":"Libya","p":7,"c":[1119,400],"r":[[1166,447,1166,461,1160,462,1160,465,1137,451,1114,437,1108,441,1104,444,1101,440,1092,436,1090,432,1085,429,1083,430,1081,426,1080,423,1077,418,1079,415,1079,410,1080,406,1079,403,1080,397,1080,394,1078,387,1081,386,1081,382,1081,379,1085,377,1086,374,1089,372,1089,367,1096,369,1098,369,1103,370,1111,373,1113,379,1119,381,1127,384,1133,387,1135,386,1138,382,1137,377,1139,373,1143,370,1147,369,1154,370,1156,374,1158,374,1160,375,1166,376,1167,378,1165,382,1166,385,1165,389,1166,395,1166,421,1166,447]]},{"n":"Ethiopia","p":127,"c":[1247,541],"r":[[1296,548,1280,570,1272,570,1267,575,1264,575,1262,577,1258,577,1256,575,1251,578,1249,581,1245,581,1244,580,1243,580,1241,580,1234,574,1230,574,1228,571,1228,567,1225,566,1221,558,1219,557,1218,554,1215,550,1211,550,1213,545,1216,545,1217,543,1217,537,1219,529,1222,527,1222,524,1225,519,1228,515,1230,508,1231,502,1238,503,1240,498,1243,501,1246,499,1248,501,1252,501,1257,504,1258,506,1261,509,1263,513,1265,515,1263,518,1261,522,1261,524,1262,526,1265,526,1266,526,1267,527,1266,530,1268,533,1270,537,1272,540,1291,548,1296,548]]},{"n":"Djibouti","p":1.1,"c":[1266,521],"r":[[1265,515,1267,516,1269,514,1270,516,1270,519,1267,521,1269,523,1267,527,1266,526,1265,526,1262,526,1261,524,1261,522,1263,518,1265,515]]},{"n":"Somaliland","p":5.7,"c":[1286,531],"r":[[1302,523,1302,524,1302,527,1302,534,1302,538,1300,542,1296,548,1291,548,1272,540,1270,537,1268,533,1266,530,1267,527,1269,523,1271,524,1272,527,1275,530,1278,530,1283,529,1289,528,1294,526,1297,525,1299,524,1302,523]]},{"n":"Uganda","p":48,"c":[1206,597],"r":[[1217,613,1205,613,1199,613,1197,614,1194,616,1192,615,1192,610,1194,607,1194,601,1195,598,1197,594,1200,592,1201,590,1199,589,1199,580,1202,578,1205,580,1210,578,1214,578,1217,575,1220,580,1221,584,1223,592,1221,597,1218,602,1217,605,1217,613]]},{"n":"Rwanda","p":14,"c":[1194,620],"r":[[1197,614,1199,618,1199,622,1197,623,1194,623,1193,627,1189,626,1190,622,1191,617,1192,615,1194,616,1197,614]]},{"n":"Bosnia and Herz.","p":3.2,"c":[1126,287],"r":[[1130,298,1125,295,1122,292,1120,291,1118,288,1116,286,1114,283,1115,280,1117,281,1118,280,1121,280,1126,281,1130,281,1132,282,1134,282,1133,285,1136,288,1135,292,1133,292,1132,293,1130,294,1130,298]]},{"n":"Macedonia","p":6,"c":[1147,305],"r":[[1151,301,1154,303,1155,308,1153,308,1153,309,1149,309,1147,311,1144,311,1141,309,1140,306,1141,304,1142,304,1142,302,1145,301,1147,301,1149,301,1151,301]]},{"n":"Serbia","p":6.7,"c":[1143,289],"r":[[1131,275,1135,273,1139,273,1142,276,1143,278,1146,280,1147,283,1150,285,1152,283,1153,284,1152,285,1153,287,1151,288,1152,291,1155,294,1153,296,1152,299,1152,300,1151,301,1149,301,1147,301,1147,300,1148,298,1147,298,1146,297,1145,296,1144,295,1143,295,1142,294,1141,294,1141,296,1139,297,1140,296,1138,295,1136,294,1135,293,1133,292,1135,292,1136,288,1133,285,1134,282,1132,282,1134,280,1132,277,1131,275]]},{"n":"Montenegro","p":0.6,"c":[1135,298],"r":[[1138,299,1137,299,1136,298,1134,301,1134,304,1133,303,1131,301,1129,299,1130,298,1130,294,1132,293,1133,292,1135,293,1136,294,1138,295,1140,296,1139,297,1138,299]]},{"n":"Kosovo","p":1.7,"c":[1143,299],"r":[[1141,304,1141,301,1139,301,1138,299,1139,297,1141,296,1141,294,1142,294,1143,295,1144,295,1145,296,1146,297,1147,298,1148,298,1147,300,1147,301,1145,301,1142,302,1142,304,1141,304]]},{"n":"Trinidad and Tobago","p":1.5,"c":[674,530],"r":[[673,528,676,527,678,527,677,533,673,534,672,533,673,531,673,528]]},{"n":"S. Sudan","p":6,"c":[1195,548],"r":[[1199,580,1194,576,1193,573,1190,574,1187,574,1186,575,1183,574,1180,568,1179,566,1175,563,1173,559,1171,555,1167,552,1167,549,1164,546,1160,544,1162,543,1164,541,1165,535,1167,532,1171,531,1172,533,1175,537,1176,537,1178,536,1182,536,1183,538,1189,538,1189,536,1192,535,1193,533,1195,532,1199,536,1202,535,1205,530,1208,526,1208,522,1206,519,1210,519,1210,517,1213,518,1212,523,1213,528,1216,531,1217,534,1216,537,1217,538,1217,543,1216,545,1213,545,1211,550,1215,550,1218,554,1219,557,1221,558,1225,566,1221,571,1217,575,1214,578,1210,578,1205,580,1202,578,1199,580]]}]};
+const HUBS=["China","United States of America","Brazil","Russia","India","Australia","South Africa","Germany","Japan","Egypt","Mexico","Indonesia","Nigeria","Canada","Argentina","Saudi Arabia","United Kingdom","Turkey"];
+const WC=Object.fromEntries(WORLD.c.map(c=>[c.n,c]));
+const worldPaths=WORLD.c.map(c=>{const p=new Path2D();for(const r of c.r){p.moveTo(r[0],r[1]);for(let i=2;i<r.length;i+=2)p.lineTo(r[i],r[i+1]);p.closePath();}return p;});
+const hash01=(s,n)=>{const x=Math.sin(s*12.9898+n*78.233)*43758.5453;return x-Math.floor(x);};
+const originOf=v=>WC[HUBS[Math.floor(hash01(v.seed||1,3)*HUBS.length)]];
+const originName=v=>originOf(v).n.toUpperCase();
+const tierOf=v=>Math.min(4,Math.floor((v.lv-1)/2.2));
+const MAPF=()=>{const w=Math.min(W*0.96,(H-(MOB()?230:210))*2),h=w/2;return {x0:W*0.5-w/2,y0:(MOB()?H*0.42:H*0.5)-h/2,s:w/WORLD.q[0]};};
+let mcam={x:WORLD.q[0]/2,y:WORLD.q[1]/2,z:1};
+function m2s(mx,my){const f=MAPF();return [f.x0+f.s*WORLD.q[0]/2+(mx-mcam.x)*f.s*mcam.z, f.y0+f.s*WORLD.q[1]/2+(my-mcam.y)*f.s*mcam.z];}
+const spreadAge=v=>(v.staked?(now()-v.mintedAt)/EPOCH_SEC:Math.min(4,(now()-v.mintedAt)/EPOCH_SEC));
+function infectionOf(c){
+  let clear=1;
+  for(const v of S.viruses){
+    const o=originOf(v);
+    const d=Math.hypot(c.c[0]-o.c[0],(c.c[1]-o.c[1])*2)/WORLD.q[0];
+    const jit=hash01(c.c[0]+c.c[1]*3,v.seed)*6;
+    const lvl=Math.max(0,Math.min(1,(spreadAge(v)*(1.2+tierOf(v)*0.5)-d*70-jit)/12));
+    clear*=1-lvl;
+  }
+  return 1-clear;
+}
+function drawWorld(t){
+  const f=MAPF();
+  let tx=WORLD.q[0]/2,ty=WORLD.q[1]/2,tz=1;
+  const fv=focus!==null?S.viruses[focus]:null;
+  if(fv){const o=originOf(fv);tx=o.c[0];ty=o.c[1];tz=MOB()?1.8:2.2;}
+  mcam.x+=(tx-mcam.x)*0.06;mcam.y+=(ty-mcam.y)*0.06;mcam.z+=(tz-mcam.z)*0.06;
+  const lv=WORLD.c.map(infectionOf);
+  const og=ctx.createRadialGradient(W*0.5,H*0.5,0,W*0.5,H*0.5,Math.max(W,H)*0.7);
+  og.addColorStop(0,"#124470");og.addColorStop(1,"#061a30");
+  ctx.fillStyle=og;ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="rgba(140,200,240,.07)";ctx.lineWidth=1;
+  for(let i=0;i<14;i++){ctx.beginPath();for(let x=0;x<=W;x+=24){const y=(i+0.5)*H/14+Math.sin(x*0.012+t*0.3+i)*10;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.stroke();}
+  const [ox,oy]=m2s(0,0),k=f.s*mcam.z;
+  ctx.save();ctx.translate(ox,oy);ctx.scale(k,k);ctx.lineWidth=0.9/k;
+  hover=-1;
+  const probe=MOB()?(now()-tapAt<3):true;
+  WORLD.c.forEach((c,i)=>{
+    const p=worldPaths[i],L=lv[i];
+    ctx.fillStyle="#55604d";ctx.fill(p);
+    if(L>0){ctx.fillStyle="rgba(205,22,12,"+(0.22+0.72*L).toFixed(3)+")";ctx.fill(p);}
+    if(L>0.7){ctx.fillStyle="rgba(70,0,0,"+((L-0.7)*1.2).toFixed(3)+")";ctx.fill(p);}
+    ctx.strokeStyle=L>0.3?"rgba(255,110,90,.55)":"rgba(170,190,160,.45)";ctx.stroke(p);
+    if(probe&&hover<0&&MX>=0&&ctx.isPointInPath(p,MX*DPR,MY*DPR))hover=i;
+  });
+  if(hover>=0){ctx.fillStyle="rgba(255,255,255,.14)";ctx.fill(worldPaths[hover]);}
+  ctx.restore();
+  // routes
+  const hubs=HUBS.map(n=>WC[n]).filter(c=>lv[WORLD.c.indexOf(c)]>0.12);
+  const origins=S.viruses.map(originOf),routes=[];
+  for(const o of origins)for(const h of hubs)if(h!==o)routes.push([o,h]);
+  for(let i=0;i<hubs.length;i++)for(let j=i+1;j<hubs.length;j++)if((i*7+j)%3===0)routes.push([hubs[i],hubs[j]]);
+  ctx.lineWidth=1.2;
+  routes.forEach((r,i)=>{
+    const a=m2s(r[0].c[0],r[0].c[1]),b=m2s(r[1].c[0],r[1].c[1]);
+    const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2-Math.hypot(b[0]-a[0],b[1]-a[1])*0.18;
+    ctx.strokeStyle="rgba(255,40,30,.55)";ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.quadraticCurveTo(mx,my,b[0],b[1]);ctx.stroke();
+    const u=((t*0.07+i*0.173)%1),iu=1-u;
+    const cx=iu*iu*a[0]+2*iu*u*mx+u*u*b[0],cy=iu*iu*a[1]+2*iu*u*my+u*u*b[1];
+    const dx=2*iu*(mx-a[0])+2*u*(b[0]-mx),dy=2*iu*(my-a[1])+2*u*(b[1]-my);
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(Math.atan2(dy,dx));ctx.fillStyle="rgba(255,235,230,.9)";
+    if(i%2){ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(-4,3.5);ctx.lineTo(-2,0);ctx.lineTo(-4,-3.5);ctx.closePath();ctx.fill();}
+    else{ctx.fillRect(-4,-2,8,4);ctx.fillRect(-1,-4,2,2);}
+    ctx.restore();
+  });
+  // viruses at their origins
+  S.viruses.forEach((v,i)=>{
+    const o=originOf(v),s=m2s(o.c[0],o.c[1]),T=tierOf(v);
+    v._sx=s[0];v._sy=s[1];
+    const dim=fv&&v!==fv;
+    const hg=ctx.createRadialGradient(s[0],s[1],0,s[0],s[1],40*mcam.z);
+    hg.addColorStop(0,v.staked?"rgba(255,60,40,.45)":"rgba(255,180,70,.35)");hg.addColorStop(1,"rgba(255,60,40,0)");
+    ctx.fillStyle=hg;ctx.beginPath();ctx.arc(s[0],s[1],40*mcam.z,0,7);ctx.fill();
+    if(window.P3D&&P3D.ready&&!naming)P3D.draw({x:s[0],y:s[1],size:(MOB()?0.07:0.05+T*0.012)*H*Math.sqrt(mcam.z),seed:v.seed,alpha:dim?0.4:1,m:0,lv:v.lv});
+    ctx.strokeStyle=i===sel?"rgba(255,230,120,.95)":"rgba(255,120,100,.7)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(s[0],s[1],24*Math.sqrt(mcam.z)+Math.sin(t*2+i)*2,0,7);ctx.stroke();
+    if(!MOB()||mcam.z>1.4){
+      ctx.font="10px monospace";ctx.fillStyle="rgba(255,240,235,.9)";ctx.fillText(v.name,s[0]+28,s[1]+3);
+      ctx.fillStyle="rgba(255,170,150,.75)";ctx.fillText(o.n.toUpperCase()+(v.staked?"":" · UNSTAKED"),s[0]+28,s[1]+14);
+    }
+  });
+  if(hover>=0){
+    const c=WORLD.c[hover],pct=Math.round(lv[hover]*100);
+    const bx=Math.min(W-200,Math.max(4,MX+14)),by=Math.max(60,MY-40);
+    ctx.fillStyle="rgba(10,14,20,.88)";ctx.fillRect(bx,by,190,36);
+    ctx.font="11px monospace";ctx.fillStyle="rgba(255,255,255,.95)";ctx.fillText(c.n.toUpperCase(),bx+8,by+14);
+    ctx.font="10px monospace";ctx.fillStyle=pct>0?"rgba(255,120,100,.95)":"rgba(170,200,220,.8)";
+    ctx.fillText(pct>0?pct+"% INFECTED · "+fmt(c.p*1e6*lv[hover])+" CASES":"NOT YET INFECTED",bx+8,by+28);
+  }
+  // tallies + news
+  let infected=0,pop=0,maxAge=0,maxT=0;
+  WORLD.c.forEach((c,i)=>{infected+=c.p*1e6*lv[i];pop+=c.p*1e6;});
+  for(const v of S.viruses){maxAge=Math.max(maxAge,spreadAge(v));maxT=Math.max(maxT,tierOf(v));}
+  const dead=infected*Math.min(0.6,0.05+0.08*maxT)*Math.min(1,maxAge/40);
+  const panel=(x,y,w,h)=>{ctx.fillStyle="rgba(8,10,14,.86)";ctx.strokeStyle="rgba(255,255,255,.28)";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x,y,w,h,4);ctx.fill();ctx.stroke();};
+  const news=[];
+  WORLD.c.forEach((c,i)=>{if(lv[i]>0.97)news.push(c.n+"'s government has fallen");else if(lv[i]>0.5)news.push(c.n+" closes its borders");else if(lv[i]>0.05)news.push("Virus detected in "+c.n);});
+  if(!news.length)news.push(S.viruses.length?"Unknown pathogen detected in "+originOf(S.viruses[0]).n:"No outbreak recorded — buy a virus to start");
+  const headline=news[Math.floor(t/4)%news.length];
+  const top=MOB()?54:56,nbW=Math.min(W-24,520);
+  panel(W*0.5-nbW/2,top,nbW,26);
+  ctx.font="10px monospace";ctx.fillStyle="rgba(255,255,255,.6)";ctx.fillText("NEWS",W*0.5-nbW/2+10,top+17);
+  ctx.font="12px monospace";ctx.fillStyle="rgba(255,255,255,.95)";
+  let hl=headline;while(hl.length>4&&ctx.measureText(hl).width>nbW-64)hl=hl.slice(0,-2).trimEnd()+"…";
+  ctx.fillText(hl,W*0.5-nbW/2+50,top+18);
+  const pw=MOB()?W-24:320,px2=W*0.5-pw/2,py2=H-(MOB()?150:118)-(MOB()?parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-b"))||0:0);
+  panel(px2,py2,pw,52);
+  ctx.font="10px monospace";ctx.fillStyle="rgba(255,255,255,.55)";ctx.fillText("WORLD",px2+12,py2+14);
+  ctx.fillStyle="rgba(255,120,100,.9)";ctx.fillText("☣ INFECTED",px2+12,py2+30);
+  ctx.fillStyle="rgba(200,210,225,.9)";ctx.fillText("☠ DEAD",px2+pw/2+8,py2+30);
+  ctx.font="bold 13px monospace";ctx.fillStyle="rgba(255,255,255,.98)";
+  ctx.fillText(fmt(infected),px2+12,py2+45);ctx.fillText(fmt(dead),px2+pw/2+8,py2+45);
+  const dw=MOB()?(W-24)/2-4:150;
+  panel(MOB()?12:26,py2-40,dw,30);
+  ctx.font="10px monospace";ctx.fillStyle="rgba(255,255,255,.55)";ctx.fillText("DISEASE",(MOB()?12:26)+10,py2-26);
+  ctx.font="bold 12px monospace";ctx.fillStyle="rgba(255,120,100,.95)";ctx.fillText("☣ "+S.viruses.length+" VIRUS"+(S.viruses.length===1?"":"ES")+" · EPOCH "+S.epoch,(MOB()?12:26)+10,py2-15);
+  const rx=MOB()?W/2+2:W-176,fee=claimFeeRate(),feeK=(fee*1e4-P.claimBaseBps)/(P.claimMaxBps-P.claimBaseBps);
+  panel(rx,py2-40,dw,30);
+  ctx.font="10px monospace";ctx.fillStyle="rgba(255,255,255,.55)";ctx.fillText("WORLD ALERT · CLAIM FEE",rx+10,py2-26);
+  ctx.fillStyle="rgba(255,255,255,.18)";ctx.fillRect(rx+10,py2-20,dw-56,6);
+  ctx.fillStyle=feeK<0.34?"rgba(120,220,60,.95)":feeK<0.67?"rgba(255,180,60,.95)":"rgba(230,40,30,.95)";ctx.fillRect(rx+10,py2-20,(dw-56)*feeK,6);
+  ctx.font="bold 11px monospace";ctx.fillStyle="rgba(255,255,255,.95)";ctx.fillText((fee*100).toFixed(1)+"%",rx+dw-40,py2-14);
+  if(naming){ // the new specimen floats under the plaque while you name it
+    const s=[W*0.5,MOB()?H*0.62:H*0.6];
+    if(window.P3D&&P3D.ready&&pending)P3D.draw({x:s[0],y:s[1],size:H*0.28,seed:pending.seed,alpha:1,m:0,lv:1});
+  }
+}
+// tap / click: pick a virus marker, or probe a country
+cv.addEventListener("pointerdown",e=>{
+  MX=e.clientX;MY=e.clientY;tapAt=now();
+  for(let i=0;i<S.viruses.length;i++){const v=S.viruses[i];if(v._sx!==undefined&&Math.hypot(e.clientX-v._sx,e.clientY-v._sy)<32){sel=i;focus=focus===i?null:i;flash();openSheet("viruses");return;}}
+  if(focus!==null)focus=null;
+});
+function frame(){
+  const t=now();
+  if(t-S.lastRebaseAt>=EPOCH_SEC){rebase();save();renderAll();}
+  drawWorld(performance.now()/1000);
+  requestAnimationFrame(frame);
+}
+setInterval(()=>{tickFeed();if(document.getElementById("sh-bond").classList.contains("on"))renderBond();if(document.getElementById("sh-treasury").classList.contains("on"))renderTreasury();save();},5000);
+renderWallet();requestAnimationFrame(frame);
+queueMicrotask(()=>{if(!S.viruses.length)setTimeout(()=>toast("BUY A VIRUS TO START EARNING"),1500);});
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'https://cdn.jsdelivr.net/npm/meshoptimizer@0.20.0/meshopt_decoder.module.js';
+
+const cv3 = document.getElementById('stage3d');
+const renderer = new THREE.WebGLRenderer({ canvas: cv3, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+let cam3;
+function resize3(){
+  renderer.setSize(innerWidth, innerHeight);
+  cam3 = new THREE.OrthographicCamera(0, innerWidth, 0, -innerHeight, -4000, 4000);
+  cam3.position.z = 100; cam3.lookAt(0, 0, 0); cam3.updateProjectionMatrix();
+}
+addEventListener('resize', resize3); resize3();
+
+// moody red-tinted lighting to match the page
+const key = new THREE.DirectionalLight(0xfff1ea, 1.9); key.position.set(0.6, 0.8, 1); scene.add(key);
+const rim = new THREE.DirectionalLight(0x70ff50, 0.45); rim.position.set(-0.8, -0.4, -1); scene.add(rim);
+scene.add(new THREE.AmbientLight(0xffd9d0, 0.65));
+
+const uTime = { value: 0 };
+const DOMAIN_3D = { levelToTier: [0,0,0,1,1,1,2,2,3,3,4], modelIds: [0], modelFiles: ['virus.meshopt.glb'] };
+const levelIndex3D = lv => Math.max(0, Math.min(10, Math.round(lv ?? 1)));
+let template = null, tplRadius = 1, tplCenter = null;
+let template2 = null, tplRadius2 = 1, tplCenter2 = null;
+let template3 = null, tplRadius3 = 1, tplCenter3 = null;
+let template4 = null, tplRadius4 = 1, tplCenter4 = null, wormAxis = null;
+let template5 = null, tplRadius5 = 1, tplCenter5 = null;
+let template6 = null, tplRadius6 = 1, tplCenter6 = null;
+const rr = (seed, n) => { const x = Math.sin(seed * 12.9898 + n * 78.233) * 43758.5453; return x - Math.floor(x); };
+const tier = lv => DOMAIN_3D.levelToTier[levelIndex3D(lv)];
+
+const P3D = {
+  ready: true,
+  queue: [],
+  // per-specimen size factor: level tier + age + per-seed variation
+  szf(lv, seed, days){ return (0.55 + tier(lv) * 0.16) * (1 + Math.min(days || 0, 90) / 90 * 0.22) * (0.82 + rr(seed, 5) * 0.36); },
+  draw(e){ this.queue.push(e); },
+  _icons: [],
+  icon(canvas, seed, lv, days, m, sol){ const model=m||0; this._icons.push({ canvas, seed, lv, days, m:model, sol }); if (modelStates[model]?.status === 'loaded') fillIcons(); },
+  ensure(m, showUI=false){ return ensureModel(m, showUI); },
+};
+window.P3D = P3D;
+
+function gaitify(mat, seedU, radius, centerU){
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uTime;
+    shader.uniforms.uSeed = seedU;
+    shader.uniforms.uRadius = { value: radius };
+    shader.uniforms.uCenter = centerU;
+    shader.vertexShader = 'uniform float uTime;\nuniform float uSeed;\nuniform float uRadius;\nuniform vec3 uCenter;\n' +
+      'float hash1(float n){ return fract(sin(n) * 43758.5453); }\n' +
+      shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      {
+        float t = uTime + uSeed * 6.28;
+        vec3 rel = transformed - uCenter;
+        vec3 p = rel / uRadius;
+        float rho = length(p.xz);
+        vec3 dir = normalize(rel + 0.0001);
+        float leg = smoothstep(0.22, 0.75, rho);
+        float tail = smoothstep(-0.05, -0.45, p.y) * (1.0 - smoothstep(0.10, 0.30, rho));
+        float body = clamp(1.0 - leg - tail, 0.0, 1.0);
+        float breath = sin(t * 0.55) * 0.6 + sin(t * 0.34 + 1.7) * 0.4;
+        transformed += dir * breath * uRadius * 0.010 * body;
+        float ang = atan(p.z, p.x) + 0.7853981;
+        float sector = (ang + 3.14159265) / 1.5707963;
+        float legId = mod(floor(sector), 4.0);
+        float edge = abs(fract(sector) - 0.5) * 2.0;
+        float safe = 1.0 - smoothstep(0.86, 1.0, edge);
+        float diag = mod(legId, 2.0);
+        float ph = diag * 3.14159265 + hash1(legId * 7.31 + uSeed) * 0.9;
+        float tempo = 0.75 * (1.0 + (hash1(legId * 3.17 + uSeed) - 0.5) * 0.12);
+        float gait = t * tempo + ph;
+        float along = smoothstep(0.22, 1.05, rho) * safe;
+        float reach2 = along * along;
+        // two joints: upper knee arches mid-leg, lower knee sits ~70% out
+        float knee = sin(along * 3.14159265);
+        float lower = smoothstep(0.55, 0.95, rho / 1.05) * safe;
+        float gaitD = gait - along * 0.9;
+        float cyc = sin(gait);
+        float lift = max(0.0, sin(gaitD));
+        lift = lift * lift * (1.0 + 0.25 * sin(t * 6.5 + legId * 9.0) * smoothstep(0.6, 1.0, lift));
+        float swing = sin(gaitD - 1.2);
+        vec3 tangent = normalize(vec3(-p.z, 0.0, p.x) + 0.0001);
+        vec3 outward = vec3(p.x, 0.0, p.z) / max(rho, 0.001);
+        // upper joint: knee arches up while the whole limb lifts
+        transformed.y += lift * uRadius * (0.10 * knee + 0.06 * reach2);
+        transformed -= outward * lift * knee * uRadius * 0.055;
+        // lower joint: folds sharply just after liftoff (tip tucks under the raised knee),
+        // then whips forward and extends to plant
+        float fold = max(0.0, sin(gaitD + 0.55));
+        fold = fold * fold * fold;
+        transformed.y -= fold * lower * uRadius * 0.11;
+        transformed -= outward * fold * lower * uRadius * 0.075;
+        float extend = max(0.0, sin(gaitD - 1.6));
+        transformed += outward * extend * extend * lower * uRadius * 0.045;
+        transformed += tangent * swing * uRadius * 0.085 * reach2;
+        float planted = max(0.0, -cyc);
+        transformed.y -= planted * planted * uRadius * (0.035 * knee + 0.022 * along);
+        transformed += outward * planted * uRadius * 0.030 * reach2;
+        float hang = smoothstep(-0.1, -1.0, p.y);
+        transformed.x += (sin(t * 0.7 + hang * 1.8) * 0.7 + sin(t * 0.43 + hang * 2.6 + 2.0) * 0.3) * uRadius * 0.020 * tail * hang;
+        transformed.z += cos(t * 0.62 + hang * 2.2 + 1.0) * uRadius * 0.014 * tail * hang;
+      }`);
+  };
+}
+
+function wobblify(mat, seedU, radius, centerU){
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uTime;
+    shader.uniforms.uSeed = seedU;
+    shader.uniforms.uRadius = { value: radius };
+    shader.uniforms.uCenter = centerU;
+    shader.vertexShader = 'uniform float uTime;\nuniform float uSeed;\nuniform float uRadius;\nuniform vec3 uCenter;\n' +
+      shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      {
+        // Virus motion: smooth position-continuous waves weighted by distance
+        // from the body core — spikes sway at the tips, the body breathes.
+        float tt = uTime * (0.85 + fract(uSeed * 0.371) * 0.5) + uSeed * 6.28;
+        vec3 rel = transformed - uCenter;
+        float r = length(rel) / uRadius;
+        float tip = smoothstep(0.25, 0.95, r);
+        vec3 p = rel * (3.0 / uRadius);
+        vec3 dir = normalize(rel + 0.0001);
+        float d = sin(tt * 1.3 + p.x * 1.3 + p.y * 1.0) * 0.5
+                + sin(tt * 1.9 + p.z * 1.6 - p.y * 1.0 + 1.7) * 0.4;
+        vec3 sway = vec3(
+          sin(tt * 1.1 + p.y + p.z * 0.7),
+          sin(tt * 1.5 + p.x + 2.1),
+          sin(tt * 0.9 + p.x * 0.8 + p.y * 1.3 + 4.0)
+        );
+        float travel = sin(tt * 2.0 - r * 6.0);
+        float body = 1.0 - tip;
+        float breath = sin(tt * 0.7) * 0.6 + sin(tt * 1.15 + p.x * 0.8 + p.z * 0.6 + 1.3) * 0.4;
+        transformed += (dir * d * 0.045 * tip
+                      + dir * breath * 0.018 * body
+                      + sway * (0.11 * tip * tip)
+                      + sway * travel * (0.04 * tip * tip)) * uRadius;
+      }`);
+  };
+}
+
+
+function wormify(mat, seedU, radius, centerU){
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uTime;
+    shader.uniforms.uSeed = seedU;
+    shader.uniforms.uCenter = centerU;
+    shader.uniforms.uWMin = { value: wormAxis.min };
+    shader.uniforms.uWAxis = { value: wormAxis.a };
+    shader.uniforms.uWUp = { value: wormAxis.u };
+    shader.uniforms.uWSide = { value: wormAxis.s };
+    shader.uniforms.uWSpan = { value: wormAxis.span };
+    shader.vertexShader = 'uniform float uTime;\nuniform float uSeed;\nuniform vec3 uCenter;\nuniform vec3 uWMin;\nuniform vec3 uWAxis;\nuniform vec3 uWUp;\nuniform vec3 uWSide;\nuniform float uWSpan;\n' +
+      'float wnoise(float x){ float i = floor(x), f = fract(x); float a = fract(sin(i*127.1)*43758.5453); float b = fract(sin((i+1.0)*127.1)*43758.5453); return mix(a,b,f*f*(3.0-2.0*f)); }\n' +
+      shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      {
+        float s = clamp(dot(transformed - uWMin, uWAxis) / uWSpan, 0.0, 1.0); // 0=head 1=tail
+        float t = uTime * (0.9 + fract(uSeed * 0.37) * 0.3) + uSeed * 6.28;
+        float tt = t - s * 0.45;
+        float wave  = sin(6.28318*(s*1.6 - tt*0.28));
+        float wave2 = sin(6.28318*(s*3.1 - tt*0.17) + 1.7);
+        float squeeze = 0.055*wave + 0.028*wave2;
+        float pulse = (wnoise(s*9.0 + t*0.9) - 0.5) * 0.035 + (wnoise(s*23.0 - t*1.7) - 0.5) * 0.018;
+        float twk = wnoise(t*0.55 + uSeed);
+        float twitch = smoothstep(0.86, 0.99, twk) * sin(t*24.0) * 0.012 * sin(s*20.0);
+        float radial = squeeze + pulse + twitch;
+        vec3 rel = transformed - uCenter;
+        transformed += (uWUp * dot(rel, uWUp) + uWSide * dot(rel, uWSide)) * radial;
+        transformed += uWAxis * uWSpan * 0.012 * cos(6.28318*(s*1.6 - tt*0.28));
+        float headW = 1.0 - smoothstep(0.0, 0.7, s);
+        float bodyW = sin(s*3.14159);
+        float endsW = smoothstep(0.0, 0.25, s) * 0.6 + 0.4;   // let head/tail travel further
+        // primary motion: big S-curves sweeping head->tail on both lateral axes
+        transformed += uWSide * uWSpan * ( 0.065*sin(6.28318*(s*0.9) - t*1.05)*endsW
+                                         + 0.030*sin(6.28318*(s*1.8) - t*0.66 + 1.3)*bodyW
+                                         + 0.016*sin(t*0.31 - s*2.6)*headW
+                                         + 0.006*(wnoise(t*0.23 + s*2.0)-0.5) );
+        transformed += uWUp * uWSpan * ( 0.050*sin(6.28318*(s*0.8) - t*0.83 + 2.4)*endsW
+                                       + 0.024*sin(6.28318*(s*1.6) - t*0.52 + 0.6)*bodyW
+                                       + 0.012*cos(t*0.27 + s*1.9)*headW );
+        // twist: cross-sections roll around the spine with the same head->tail delay
+        float twr = 0.22*sin(6.28318*(s*0.7) - t*0.74 + 4.0) + 0.10*sin(t*0.47 - s*5.2);
+        vec3 ru = uWUp * dot(rel, uWUp) + uWSide * dot(rel, uWSide);
+        vec3 axn = normalize(uWAxis);
+        transformed += (cos(twr) - 1.0) * ru + sin(twr) * cross(axn, ru);
+        // stretch/compress: slow peristaltic elongation along the spine
+        transformed += uWAxis * uWSpan * 0.030 * sin(6.28318*(s*1.1) - t*0.6 + 1.0) * (s - 0.5);
+      }`);
+  };
+}
+
+const pools = [[], [], [], [], [], []];
+function getSlot(i, m){
+  const pool = pools[m];
+  const tpl = [template, template2, template3, template4, template5, template6][m];
+  const rad = [tplRadius, tplRadius2, tplRadius3, tplRadius4, tplRadius5, tplRadius6][m];
+  const ctr = [tplCenter, tplCenter2, tplCenter3, tplCenter4, tplCenter5, tplCenter6][m];
+  while (pool.length <= i) {
+    const inst = tpl.clone(true);
+    const seedU = { value: 0 };
+    const mats = [];
+    inst.traverse(o => {
+      if (!o.isMesh) return;
+      o.material = o.material.clone();
+      o.material.transparent = true;
+      wobblify(o.material, seedU, rad, ctr);
+      mats.push(o.material);
+    });
+    const g = new THREE.Group(); g.add(inst);
+    scene.add(g);
+    pool.push({ g, seedU, mats });
+  }
+  return pool[i];
+}
+
+const gl = new GLTFLoader(); gl.setMeshoptDecoder(MeshoptDecoder);
+// embedded bytes (single-file build) or a fetch of the meshopt GLB next to the page
+function loadGlb(file, onLoad, onProgress, onError){
+  if (window.__VIRUS_GLB_B64__) { const b = Uint8Array.from(atob(window.__VIRUS_GLB_B64__), c => c.charCodeAt(0)); gl.parse(b.buffer, '', onLoad, onError); }
+  else gl.load(file, onLoad, onProgress, onError);
+}
+const MODEL_IDS = [...DOMAIN_3D.modelIds];
+const MODEL_FILES = [...DOMAIN_3D.modelFiles];
+const modelStates = Array.from({ length: MODEL_FILES.length }, () => ({ status: 'idle', promise: null }));
+const loaderEl = document.getElementById('model-loader');
+const loaderText = document.getElementById('model-loader-text');
+const loaderPercent = document.getElementById('model-loader-percent');
+const loaderBar = document.getElementById('model-loader-bar');
+let activeUiModel = null;
+let backgroundScheduled = false;
+
+function showModelLoader(m){
+  activeUiModel = m;
+  loaderText.textContent = 'LOADING SPECIMEN';
+  loaderPercent.textContent = '0%';
+  loaderBar.style.width = '0%';
+  loaderEl.onclick = null;
+  loaderEl.classList.remove('error');
+  loaderEl.classList.add('on');
+}
+function updateModelLoader(m, event){
+  if(activeUiModel !== m)return;
+  const pct = event.lengthComputable && event.total ? Math.min(99, Math.round(event.loaded / event.total * 100)) : null;
+  loaderPercent.textContent = pct === null ? `${Math.round(event.loaded / 1024)} KB` : `${pct}%`;
+  if(pct !== null)loaderBar.style.width = `${pct}%`;
+}
+function finishModelLoader(m){
+  if(activeUiModel !== m)return;
+  loaderPercent.textContent = '100%';
+  loaderBar.style.width = '100%';
+  setTimeout(()=>loaderEl.classList.remove('on'),220);
+  activeUiModel = null;
+}
+function failModelLoader(m){
+  if(activeUiModel !== m)return;
+  loaderText.textContent = 'MODEL LOAD FAILED · CLICK TO RETRY';
+  loaderPercent.textContent = '';
+  loaderEl.classList.add('error','on');
+  loaderEl.onclick = ()=>ensureModel(m,true);
+}
+
+// remap the baked texture onto a flesh ramp (crimson crevices -> salmon ridges) and reuse it as bump detail
+const fleshCache=new Map();
+function fleshify(mat){
+  const src=mat.map&&mat.map.image; if(!src)return;
+  let tex=fleshCache.get(src);
+  if(!tex){
+    const c=document.createElement('canvas');c.width=src.width;c.height=src.height;
+    const g=c.getContext('2d');g.drawImage(src,0,0);
+    const d=g.getImageData(0,0,c.width,c.height),px=d.data;
+    for(let i=0;i<px.length;i+=4){
+      const l=(px[i]*0.299+px[i+1]*0.587+px[i+2]*0.114)/255, k=Math.pow(l,0.85);
+      px[i]=Math.min(255,125+k*130);px[i+1]=Math.min(255,62+k*118);px[i+2]=Math.min(255,66+k*100);
+    }
+    g.putImageData(d,0,0);
+    tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+    tex.flipY=mat.map.flipY;tex.wrapS=mat.map.wrapS;tex.wrapT=mat.map.wrapT;
+    fleshCache.set(src,tex);
+  }
+  mat.map=tex;mat.bumpMap=tex;mat.bumpScale=0.02;
+  mat.roughnessMap=null;mat.metalnessMap=null;mat.roughness=0.72;mat.metalness=0;
+  mat.color.set(0xffffff);mat.needsUpdate=true;
+}
+function prepTemplate(gltf){
+  const model = gltf.scene;
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const holder = new THREE.Group(); holder.add(model);
+  // normalize so scale value == on-screen pixel size of the longest axis
+  const s = 1 / Math.max(size.x, size.y, size.z);
+  holder.scale.setScalar(s);
+  // uCenter is in mesh-local space (pre model.position offset)
+  return { holder, radius: size.length() / 2, center: { value: center.clone() }, offset: center };
+}
+function applyTemplate(m, gltf){
+  gltf.scene.traverse(o => { if (o.isMesh) fleshify(o.material); });
+  const t = prepTemplate(gltf);
+  let wormData = null;
+  if(m === 3){
+    const box = new THREE.Box3().setFromObject(gltf.scene);
+    const size = box.getSize(new THREE.Vector3());
+    const dims = [size.x, size.y, size.z];
+    const axis = dims.indexOf(Math.max(...dims));
+    const others = [0,1,2].filter(i => i !== axis);
+    const up = dims[others[0]] <= dims[others[1]] ? others[0] : others[1];
+    const side = others[0] === up ? others[1] : others[0];
+    const unit = i => new THREE.Vector3(+(i===0), +(i===1), +(i===2));
+    wormData = { min: box.min.clone(), a: unit(axis), u: unit(up), s: unit(side), span: dims[axis] };
+  }
+  gltf.scene.position.sub(t.offset);
+  if(m === 0){ template = t.holder; tplRadius = t.radius; tplCenter = t.center; }
+  if(m === 1){ template2 = t.holder; tplRadius2 = t.radius; tplCenter2 = t.center; P3D.ready2 = true; }
+  if(m === 3){
+    wormAxis = wormData;
+    template4 = t.holder; tplRadius4 = t.radius; tplCenter4 = t.center; P3D.ready4 = true;
+  }
+  if(m === 4){ template5 = t.holder; tplRadius5 = t.radius; tplCenter5 = t.center; P3D.ready5 = true; }
+  if(m === 5){ template6 = t.holder; tplRadius6 = t.radius; tplCenter6 = t.center; P3D.ready6 = true; }
+}
+
+function scheduleBackgroundLoads(primary){
+  if(backgroundScheduled)return;
+  backgroundScheduled = true;
+  const queue = MODEL_IDS.filter(m=>m!==primary);
+  const next = ()=>{
+    const m = queue.shift();
+    if(m === undefined)return;
+    const start = ()=>ensureModel(m,false).then(next,next);
+    if('requestIdleCallback' in window)requestIdleCallback(start,{timeout:1800});
+    else setTimeout(start,500);
+  };
+  next();
+}
+
+function ensureModel(m, showUI=false){
+  const state = modelStates[m];
+  const file = MODEL_FILES[m];
+  if(!state||!file)return Promise.resolve();
+  if(state.status === 'loaded')return Promise.resolve();
+  if(state.status === 'loading'){
+    if(showUI)showModelLoader(m);
+    return state.promise;
+  }
+  if(showUI)showModelLoader(m);
+  state.status = 'loading';
+  state.promise = new Promise((resolve,reject)=>{
+    loadGlb(file,(gltf)=>{
+      applyTemplate(m,gltf);
+      state.status = 'loaded';
+      finishModelLoader(m);
+      fillIcons();
+      resolve();
+    },event=>updateModelLoader(m,event),(error)=>{
+      state.status = 'error';
+      failModelLoader(m);
+      console.error(`Failed to load ${file}`,error);
+      reject(error);
+    });
+  });
+  return state.promise;
+}
+
+ensureModel(0,true).catch(()=>{});
+queueMicrotask(()=>dispatchEvent(new Event('p3d-ready')));
+
+// static 3D snapshots for the selector icons
+let iconRT = null;
+function fillIcons(){
+  if (!P3D._icons.length) return;
+  const size = 176;
+  const irenderer = iconRT || (iconRT = new THREE.WebGLRenderer({ antialias: true, alpha: true }));
+  irenderer.setSize(size, size);
+  irenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const iscene = new THREE.Scene();
+  const ik = new THREE.DirectionalLight(0xfff1ea, 1.9); ik.position.set(0.6, 0.8, 1); iscene.add(ik);
+  const ir = new THREE.DirectionalLight(0x70ff50, 0.45); ir.position.set(-0.8, -0.4, -1); iscene.add(ir);
+  iscene.add(new THREE.AmbientLight(0xffd9d0, 0.65));
+  const icam = new THREE.OrthographicCamera(-0.62, 0.62, 0.62, -0.62, -10, 10);
+  const instA = template ? template.clone(true) : null;
+  const instB = template2 ? template2.clone(true) : null;
+  const instC = template3 ? template3.clone(true) : null;
+  const instD = template4 ? template4.clone(true) : null;
+  const instE = template5 ? template5.clone(true) : null;
+  const instF = template6 ? template6.clone(true) : null;
+  const keep = [];
+  for (const it of P3D._icons.splice(0)) {
+    const inst = [instA, instB, instC, instD, instE, instF][it.m || 0];
+    if (!inst) { keep.push(it); continue; }   // bacterium not loaded yet — retry later
+    iscene.add(inst);
+    inst.rotation.set(rr(it.seed, 2) * 0.8 - 0.4, it.seed * 2.1, rr(it.seed, 3) * 0.6 - 0.3);
+    const sc = 0.55 + P3D.szf(it.lv, it.seed, it.days, it.sol) * 0.45;
+    inst.scale.setScalar(sc / Math.max(1, 1));
+    irenderer.render(iscene, icam);
+    const g2 = it.canvas.getContext('2d');
+    g2.setTransform(1, 0, 0, 1, 0, 0);
+    g2.clearRect(0, 0, it.canvas.width, it.canvas.height);
+    g2.drawImage(irenderer.domElement, 0, 0, it.canvas.width, it.canvas.height);
+    iscene.remove(inst);
+  }
+  P3D._icons.push(...keep);
+}
+
+renderer.setAnimationLoop(() => {
+  const t = performance.now() / 1000;
+  uTime.value = t;
+  let clip = null;
+  const q = P3D.queue;
+  const counts = [0, 0, 0, 0, 0, 0];
+  for (let i = 0; i < q.length; i++) {
+    const e = q[i];
+    const mi = e.m || 0;
+    const mReady = modelStates[mi]?.status === 'loaded';
+    if (!mReady) continue;
+    const slot = getSlot(counts[mi]++, mi);
+    slot.g.visible = true;
+    slot.g.position.set(e.x, -e.y, 0);
+    slot.g.scale.setScalar(e.size);
+    slot.seedU.value = e.seed;
+    // slow per-specimen tumble + drift (kept subtle so the specimen motion reads)
+    const rf = 0.5;
+    slot.g.rotation.y = t * (0.25 + rr(e.seed, 7) * 0.3) * rf + e.seed * 2.3;
+    slot.g.rotation.x = Math.sin(t * 0.4 + e.seed) * 0.18 * rf + (rr(e.seed, 8) - 0.5) * 0.5;
+    slot.g.rotation.z = Math.sin(t * 0.23 + e.seed * 1.7) * 0.1 * rf;
+    slot.g.position.y += Math.sin(t * 0.7 + e.seed * 3.1) * e.size * 0.02;
+    const a = e.alpha === undefined ? 1 : e.alpha;
+    for (const m of slot.mats) m.opacity = a;
+    if (e.clip) clip = e.clip;
+  }
+  for (let mi = 0; mi < pools.length; mi++)
+    for (let i = counts[mi]; i < pools[mi].length; i++) pools[mi][i].g.visible = false;
+  q.length = 0;
+  cv3.style.clipPath = clip ? `circle(${clip.r}px at ${clip.x}px ${clip.y}px)` : 'none';
+  renderer.render(scene, cam3);
+});
+
+</script>
+</body>
+</html>
