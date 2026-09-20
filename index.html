@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6faf3">
+  <meta name="description" content="UMBRELLA fitness demo. Move. Infect. Earn.">
+  <title>UMBRELLA — Move. Infect. Earn.</title>
+  <link rel="stylesheet" href="./fitness.css">
+  <script type="module" src="./fitness.mjs"></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="header">
+      <div class="brand-row"><a class="brand" href="#home" aria-label="UMBRELLA Home"><span class="brand-name">✳ UMBRELLA</span><span class="tagline">MOVE. INFECT. EARN.</span></a><button class="demo-tag" data-action="about">DEMO</button></div>
+      <div class="account-row"><button class="profile" data-action="about" aria-label="Profile and demo settings"><span class="profile-face">☺</span><span>LV 12</span></button><button class="wallet" data-action="wallet" aria-label="Open wallet"><span>◉ <b id="pfe-balance">0.024850000</b> <small>PFE</small></span><span>◆ <b id="umb-balance">12,500</b></span><span id="wallet-icon"></span></button></div>
+    </header>
+    <main id="main" tabindex="-1"></main>
+    <nav class="navigation" aria-label="Main navigation"></nav>
+  </div>
+  <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-top"><h2 id="dialog-title"></h2><button class="icon-button" data-action="close-dialog" aria-label="Close">×</button></div><div id="dialog-content"></div></dialog>
+  <div class="toast" id="toast" role="status"></div>
+  <noscript>This interactive demo needs JavaScript. <a href="./umbrella.html">Open the original demo.</a></noscript>
+</body>
+</html>
